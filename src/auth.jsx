@@ -185,6 +185,7 @@ export function AuthProvider({ children }) {
     if (!isElectron() || !gymId) return { ok: true };
     setBranchSyncState((s) => ({ ...s, [gymId]: { ...s[gymId], status: "syncing" } }));
     let ok = true;
+    let pushErrors = [];
     try {
       // pushPendingChanges never throws on a per-record rejection — it
       // deliberately keeps going so one bad row can't strand a day of
@@ -193,7 +194,10 @@ export function AuthProvider({ children }) {
       // "Synced successfully" while the record stayed pending on the
       // device, invisible everywhere else.
       const pushResult = await pushPendingChanges(gymId);
-      if (pushResult?.failedCount > 0) ok = false;
+      if (pushResult?.failedCount > 0) {
+        ok = false;
+        pushErrors = pushResult.errors || [];
+      }
       await pullRemoteChanges(gymId);
       await pullFactAndMembers(gymId);
     } catch (err) {
@@ -214,7 +218,7 @@ export function AuthProvider({ children }) {
         pendingCount,
       },
     }));
-    return { ok };
+    return { ok, errors: pushErrors };
   }
 
   // Runs once per sign-in, right after bootstrap — the one place a real
@@ -326,6 +330,12 @@ export function AuthProvider({ children }) {
   async function syncNow() {
     const results = await Promise.all(syncGymIds.map((gid) => runSyncCycle(gid)));
     const allOk = results.every((r) => r.ok);
+    // The packaged desktop app has no menu and no DevTools, so a
+    // console.error is invisible to the person actually holding the
+    // problem. The reason has to travel to the toast or it may as well not
+    // exist — "permission-denied" turns an unanswerable "why?" into a
+    // one-line diagnosis.
+    const reasons = [...new Set(results.flatMap((r) => r.errors || []))];
     // "Some records were rejected" rather than a flat "sync failed": the
     // distinction matters to whoever is standing at the desk. A rejected
     // record is still safe on this device and will retry, but it is NOT
@@ -336,7 +346,9 @@ export function AuthProvider({ children }) {
         ? { type: "success", message: "Synced successfully", id: Date.now() }
         : {
             type: "error",
-            message: "Some records didn't sync — still saved here, will retry",
+            message: reasons.length
+              ? `Didn't sync (${reasons.join("; ")}) — still saved here, will retry`
+              : "Some records didn't sync — still saved here, will retry",
             id: Date.now(),
           }
     );

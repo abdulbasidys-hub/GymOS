@@ -45,6 +45,18 @@ function prepareEntityDoc(table, row) {
   return rowToTimestamps(table, rest, ENTITY_TIMESTAMP_FIELDS);
 }
 
+/** Firebase errors carry a machine-readable `code` ("permission-denied",
+ *  "unavailable", "failed-precondition") that says far more than the
+ *  message. Kept short and prefixed with what was being pushed, because
+ *  this string ends up in front of whoever is standing at the desk — and,
+ *  crucially, is the ONLY diagnostic they have: the packaged app has no
+ *  menu and no DevTools, so a console.error reaches nobody. */
+function describeFailure(what, err) {
+  const code = err?.code || err?.name || "";
+  const detail = code || err?.message || "unknown error";
+  return `${what}: ${detail}`;
+}
+
 function chunk(items, size) {
   const out = [];
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
@@ -57,7 +69,7 @@ function chunk(items, size) {
  *  durable. A failed chunk is logged and skipped, not thrown — leaving
  *  those rows 'pending' for the next cycle rather than aborting every
  *  other table's push over one failure. */
-async function pushFactTable(table, rows) {
+async function pushFactTable(table, rows, errors) {
   let failed = 0;
   for (const group of chunk(rows, BATCH_SIZE)) {
     try {
@@ -68,6 +80,7 @@ async function pushFactTable(table, rows) {
     } catch (err) {
       console.error(`Sync push failed for ${table} (will retry next cycle):`, err);
       failed += group.length;
+      errors.push(describeFailure(table, err));
     }
   }
   return failed;
@@ -77,7 +90,7 @@ async function pushFactTable(table, rows) {
  *  existing documents (a receptionist's phone number, a plan's price),
  *  not fresh creates, so a full non-merge overwrite could silently wipe
  *  a field this local schema doesn't happen to track. */
-async function pushEntityTable(table, rows) {
+async function pushEntityTable(table, rows, errors) {
   let failed = 0;
   for (const group of chunk(rows, BATCH_SIZE)) {
     try {
@@ -88,6 +101,7 @@ async function pushEntityTable(table, rows) {
     } catch (err) {
       console.error(`Sync push failed for ${table} (will retry next cycle):`, err);
       failed += group.length;
+      errors.push(describeFailure(table, err));
     }
   }
   return failed;
@@ -121,7 +135,7 @@ async function pushEntityTable(table, rows) {
  * applyMemberRenumber corrects the local row to match the now-
  * authoritative cloud number.
  */
-async function pushMembers(gymId, members, gymPrefix) {
+async function pushMembers(gymId, members, gymPrefix, errors) {
   let failed = 0;
   for (const member of members) {
     try {
@@ -164,6 +178,7 @@ async function pushMembers(gymId, members, gymPrefix) {
     } catch (err) {
       console.error("Sync push failed for a member (will retry next cycle):", err);
       failed += 1;
+      errors.push(describeFailure("members", err));
     }
   }
   return failed;
@@ -174,7 +189,7 @@ async function pushMembers(gymId, members, gymPrefix) {
  *  existed doc succeeds silently, so this is safe to retry indefinitely,
  *  including for a field created and deleted locally before ever syncing
  *  (a tombstone for an id Firestore never had — still a harmless no-op). */
-async function pushDeletes(gymId) {
+async function pushDeletes(gymId, errors) {
   const items = await localInvoke("getPendingDeletes", { gymId });
   const cleared = [];
   let failed = 0;
@@ -185,6 +200,7 @@ async function pushDeletes(gymId) {
     } catch (err) {
       console.error(`Sync push: delete failed for ${item.table}/${item.id} (will retry next cycle):`, err);
       failed += 1;
+      errors.push(describeFailure(`delete ${item.table}`, err));
     }
   }
   if (cleared.length > 0) await localInvoke("clearPendingDeletes", { items: cleared });
@@ -209,36 +225,41 @@ export async function pushPendingChanges(gymId) {
   if (!window.gymOS?.isElectron || !gymId) return { failedCount: 0 };
 
   let failedCount = 0;
+  const errors = [];
   try {
     const factRows = await localInvoke("getPendingFactRows", { gymId });
     for (const [table, rows] of Object.entries(factRows)) {
-      if (rows?.length) failedCount += await pushFactTable(table, rows);
+      if (rows?.length) failedCount += await pushFactTable(table, rows, errors);
     }
 
     const entityRows = await localInvoke("getPendingEntityRows", { gymId });
     for (const table of ["plans", "custom_fields", "users"]) {
-      if (entityRows[table]?.length) failedCount += await pushEntityTable(table, entityRows[table]);
+      if (entityRows[table]?.length) failedCount += await pushEntityTable(table, entityRows[table], errors);
     }
 
     if (entityRows.members?.length) {
       const gymSnap = await getDoc(doc(db, "gyms", gymId));
       const gymPrefix = gymSnap.exists() ? gymSnap.data().prefix : null;
       if (gymPrefix) {
-        failedCount += await pushMembers(gymId, entityRows.members, gymPrefix);
+        failedCount += await pushMembers(gymId, entityRows.members, gymPrefix, errors);
       } else {
         // No prefix means the gym doc couldn't be read (offline, or a rules
         // denial). Members cannot be numbered without it, so they stay
         // pending — count them, or the cycle would call this a success
         // having pushed no members at all.
         failedCount += entityRows.members.length;
+        errors.push("members: couldn't read the gym record (offline, or permission denied)");
       }
     }
 
-    failedCount += await pushDeletes(gymId);
+    failedCount += await pushDeletes(gymId, errors);
   } catch (err) {
     console.error("Sync push cycle failed (will retry next cycle):", err);
     failedCount += 1;
+    errors.push(describeFailure("sync", err));
   }
 
-  return { failedCount };
+  // Deduplicated: one rules denial usually rejects every row in a table, and
+  // repeating the same line per record buries the one fact that matters.
+  return { failedCount, errors: [...new Set(errors)] };
 }

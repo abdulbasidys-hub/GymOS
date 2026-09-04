@@ -147,6 +147,23 @@ function createWindow() {
     win.show();
   });
 
+  // Ctrl+Shift+I opens DevTools in the PACKAGED app too, not just in dev.
+  // Normally that accelerator comes from Electron's default application
+  // menu — which this app removes (Menu.setApplicationMenu(null), for the
+  // frameless no-title-bar design) — so without this there is no way to
+  // read a console error on an installed copy. That mattered the first
+  // time a customer's sync failed: the reason existed only in a console
+  // nobody could open. Support needs a way in, and a keyboard shortcut no
+  // one will find by accident is the cheapest one.
+  win.webContents.on("before-input-event", (event, input) => {
+    const isToggle =
+      (input.control && input.shift && input.key.toLowerCase() === "i") || input.key === "F12";
+    if (input.type === "keyDown" && isToggle) {
+      win.webContents.toggleDevTools();
+      event.preventDefault();
+    }
+  });
+
   if (isDev) {
     win.loadURL(process.env.ELECTRON_DEV_SERVER_URL || "http://localhost:5173");
     win.webContents.openDevTools({ mode: "detach" });

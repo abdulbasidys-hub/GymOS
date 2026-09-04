@@ -684,7 +684,15 @@ body {
   font-weight: 600;
   cursor: pointer;
   animation: sync-toast-in var(--duration-base) var(--ease-out);
+  /* An error toast now carries the actual failure reason (a Firebase code
+     like "permission-denied"), which is longer than the old fixed strings
+     — cap the width and let it wrap instead of stretching across the
+     screen. align-items shifts to flex-start so the icon stays level with
+     the FIRST line rather than floating beside a two-line block. */
+  max-width: min(460px, calc(100vw - 48px));
 }
+.sync-toast--error { align-items: flex-start; }
+.sync-toast--error svg { margin-top: 2px; }
 .sync-toast svg { width: 18px; height: 18px; flex-shrink: 0; }
 .sync-toast--success { color: var(--accent); border-color: rgba(var(--accent-rgb), 0.35); }
 .sync-toast--error { color: var(--bad); border-color: rgba(var(--bad-rgb), 0.35); }
