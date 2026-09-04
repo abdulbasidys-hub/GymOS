@@ -1727,6 +1727,18 @@ select option { background: var(--surface); color: var(--text); }
 .site-hero__title { font-size: 44px; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; }
 .site-hero__title-accent { color: var(--accent); }
 .site-hero__sub { font-size: 16px; color: var(--text-secondary); line-height: 1.6; }
+/* A short closing line under the subhead (Pricing.jsx's "Start with what
+   you need today"). Slightly smaller and heavier than .site-hero__sub, in
+   full --text rather than --text-secondary: it's the reassurance the
+   subhead has been building to, so it should land as the firmer statement
+   of the two, not fade further into grey. */
+.site-hero__kicker {
+  margin-top: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.5;
+}
 .site-hero__actions { display: flex; gap: 12px; flex-wrap: wrap; }
 .site-hero__visual { display: flex; justify-content: center; }
 
@@ -1822,6 +1834,31 @@ select option { background: var(--surface); color: var(--text); }
 .site-checklist li { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; color: var(--text-secondary); }
 .site-checklist svg { flex-shrink: 0; color: var(--accent); margin-top: 1px; }
 .site-note { text-align: center; color: var(--muted); font-size: 13px; margin-top: 24px; max-width: 640px; margin-left: auto; margin-right: auto; }
+
+/* Reassurance under the pricing cards (Pricing.jsx). Sized below
+   .site-section__title's 26px so it reads as a footnote to the tiers
+   rather than a new section competing with them, and given real top
+   separation so it doesn't look like it belongs to the last card in the
+   row. The border-top is the same "incomplete line" device .card uses —
+   it groups the block with the grid above without boxing it in. */
+.site-pricing-help {
+  max-width: 560px;
+  margin: 48px auto 0;
+  padding-top: 32px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+.site-pricing-help h2 {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 8px;
+}
+.site-pricing-help p {
+  color: var(--text-secondary);
+  font-size: 15px;
+  line-height: 1.6;
+}
 
 /* -- tagline statement -- a standalone declaration, not a badge; see
    MarketingHome.jsx's own comment on why this replaced a small eyebrow

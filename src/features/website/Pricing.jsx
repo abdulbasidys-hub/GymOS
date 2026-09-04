@@ -65,9 +65,18 @@ export default function Pricing() {
     <WebsiteLayout>
       <section className="site-hero site-hero--narrow">
         <div className="site-hero__copy">
-          <h1 className="site-hero__title">Simple, transparent pricing</h1>
+          <h1 className="site-hero__title">Simple pricing that grows with your gym</h1>
           <p className="site-hero__sub">
-            Power your fitness business with GymOS. Choose the plan that fits your gym&rsquo;s size and ambitions.
+            Whether you&rsquo;re running a small gym, growing your membership, or managing multiple
+            locations, there&rsquo;s a plan built for your business.
+          </p>
+          {/* Deliberately its own line rather than a third sentence in the
+              paragraph above: it's the reassurance that answers "what if I
+              pick wrong?", and it only does that job if it reads as a
+              separate, definite statement instead of trailing off the end
+              of a longer sentence. */}
+          <p className="site-hero__kicker">
+            Start with what you need today. Upgrade as your gym grows.
           </p>
         </div>
       </section>
@@ -101,6 +110,17 @@ export default function Pricing() {
             ))}
           </div>
         )}
+
+        {/* Outside the loading/empty conditional above on purpose: this is
+            static page copy, not per-plan content, so rendering it in every
+            state keeps the page from reflowing once the tiers land. */}
+        <div className="site-pricing-help">
+          <h2>Not sure which plan is right for you?</h2>
+          <p>
+            Choose based on the size and stage of your gym. You can upgrade whenever your
+            business grows.
+          </p>
+        </div>
       </section>
     </WebsiteLayout>
   );
