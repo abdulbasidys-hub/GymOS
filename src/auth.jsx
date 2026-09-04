@@ -198,8 +198,12 @@ export function AuthProvider({ children }) {
         ok = false;
         pushErrors = pushResult.errors || [];
       }
-      await pullRemoteChanges(gymId);
-      await pullFactAndMembers(gymId);
+      // Role/uid matter: firestore.rules scopes what a receptionist may read
+      // far more tightly than an owner, and two of the pull passes have to
+      // respect that rather than issue queries that are denied every cycle.
+      const viewer = { role: account?.role, uid: user?.uid };
+      await pullRemoteChanges(gymId, viewer);
+      await pullFactAndMembers(gymId, viewer);
     } catch (err) {
       console.error("Sync cycle failed (will retry):", err);
       ok = false;

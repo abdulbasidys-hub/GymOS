@@ -52,8 +52,8 @@ export default function CrossBranchReport() {
         // already guards on window.gymOS?.isElectron itself).
         for (const b of branches) {
           await ensureBootstrapped(b.id);
-          await pullRemoteChanges(b.id);
-          await pullFactAndMembers(b.id);
+          await pullRemoteChanges(b.id, { role: "owner" });
+          await pullFactAndMembers(b.id, { role: "owner" });
         }
 
         const now = new Date();

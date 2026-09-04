@@ -84,6 +84,15 @@ async function fetchGym(gymId) {
   return snap.exists() ? gymToIso({ id: snap.id, ...snap.data() }) : null;
 }
 
+/** Just the signed-in user's own document — the one users read a
+ *  receptionist is permitted. Returns an array so callers can treat it
+ *  identically to fetchByGymId's result. */
+async function fetchOwnUser(uid) {
+  if (!uid) return [];
+  const snap = await getDoc(doc(db, "users", uid));
+  return snap.exists() ? [rowToIso("users", { id: snap.id, ...snap.data() }, ENTITY_TIMESTAMP_FIELDS)] : [];
+}
+
 async function fetchByGymId(collectionName, gymId) {
   const snap = await getDocs(query(collection(db, collectionName), where("gym_id", "==", gymId)));
   return snap.docs.map((d) => rowToIso(collectionName, { id: d.id, ...d.data() }, ENTITY_TIMESTAMP_FIELDS));
@@ -127,7 +136,7 @@ function isOperational(gym) {
  * cycle) — one collection erroring must never block the other three, same
  * per-table independence pushPendingChanges already established.
  */
-export async function pullRemoteChanges(gymId) {
+export async function pullRemoteChanges(gymId, viewer = {}) {
   if (!window.gymOS?.isElectron || !gymId) return;
 
   let gym = null;
@@ -140,9 +149,18 @@ export async function pullRemoteChanges(gymId) {
 
   if (!isOperational(gym)) return;
 
+  // A RECEPTIONIST cannot list the gym's users — firestore.rules gives them
+  // read on their OWN user document only (`request.auth.uid == uid`), so the
+  // gym-wide query below is denied outright for them. That is the rule
+  // working as intended, not a gap to widen: a receptionist has no business
+  // reading colleagues' records. Fetch just their own document instead, which
+  // is all the desk actually needs locally (offline session + "who am I").
   try {
-    const users = await fetchByGymId("users", gymId);
-    await localInvoke("applyPulledUsers", { users });
+    const users =
+      viewer.role === "receptionist"
+        ? await fetchOwnUser(viewer.uid)
+        : await fetchByGymId("users", gymId);
+    if (users.length > 0) await localInvoke("applyPulledUsers", { users });
   } catch (err) {
     console.error("Pull failed for users (will retry next cycle):", err);
   }
@@ -175,12 +193,25 @@ export async function pullRemoteChanges(gymId) {
  * refetch-and-diff) and, per auth.jsx's ordering, entities are meant to
  * land first every cycle regardless of whether this call errors.
  */
-export async function pullFactAndMembers(gymId) {
+export async function pullFactAndMembers(gymId, viewer = {}) {
   if (!window.gymOS?.isElectron || !gymId) return;
 
   const cursors = await localInvoke("getPullCursors", { gymId }).catch(() => ({}));
 
-  for (const table of FACT_CURSOR_TABLES) {
+  // A receptionist may only read activity_log rows they THEMSELVES wrote
+  // (firestore.rules checks resource.data.actor_uid == request.auth.uid).
+  // A gym-wide query can't satisfy that — Firestore rejects any list query
+  // it cannot prove safe from the query alone — so this pass is denied for
+  // them every cycle. Skipped rather than narrowed with an actor_uid filter:
+  // that would need a new composite index, and the desk has no use for the
+  // activity feed anyway. It only ever WRITES these rows (push is
+  // unaffected); the owner's dashboard is what reads them back.
+  const tables =
+    viewer.role === "receptionist"
+      ? FACT_CURSOR_TABLES.filter((t) => t !== "activity_log")
+      : FACT_CURSOR_TABLES;
+
+  for (const table of tables) {
     try {
       const rows = await fetchGymScopedPage(table, gymId, cursors[table], FACT_TIMESTAMP_FIELDS);
       if (rows.length === 0) continue;

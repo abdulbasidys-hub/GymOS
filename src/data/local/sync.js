@@ -138,9 +138,16 @@ async function pushEntityTable(table, rows, errors) {
 async function pushMembers(gymId, members, gymPrefix, errors) {
   let failed = 0;
   for (const member of members) {
+    let branch = "member";
     try {
       const memberRef = doc(db, "members", member.id);
       const existing = await getDoc(memberRef);
+      // Which branch we're in, so a denial says WHICH write was rejected —
+      // "member create" and "member edit" are governed by entirely different
+      // rules (create needs isReceptionist + an operational gym; edit is
+      // additionally restricted to a bio-data allow-list), and without this
+      // both surface as one indistinguishable "permission-denied".
+      branch = existing.exists() ? "member edit" : "member create";
 
       if (existing.exists()) {
         const remoteNo = existing.data().member_no;
@@ -176,9 +183,9 @@ async function pushMembers(gymId, members, gymPrefix, errors) {
 
       await localInvoke("applyMemberRenumber", { memberId: member.id, memberNo: assignedNo });
     } catch (err) {
-      console.error("Sync push failed for a member (will retry next cycle):", err);
+      console.error(`Sync push failed for ${branch} ${member.member_no || member.id} (will retry next cycle):`, err);
       failed += 1;
-      errors.push(describeFailure("members", err));
+      errors.push(describeFailure(`${branch} ${member.member_no || ""}`.trim(), err));
     }
   }
   return failed;
