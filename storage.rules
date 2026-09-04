@@ -1,0 +1,38 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function myGymIds() {
+      let u = firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+      return u.get('gym_ids', [u.get('gym_id', '')]);
+    }
+    function myRole() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.get('role', '');
+    }
+    function isSuperAdmin() {
+      return isSignedIn() && myRole() == 'superadmin';
+    }
+    function isReceptionist() {
+      return isSignedIn() && myRole() == 'receptionist';
+    }
+    function inMyGym(gymId) {
+      return isSignedIn() && gymId in myGymIds();
+    }
+
+    match /member_photos/{gymId}/{memberId} {
+      allow read: if isSuperAdmin() || inMyGym(gymId);
+      allow write: if (isSuperAdmin() || (isReceptionist() && inMyGym(gymId)))
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+      allow delete: if isSuperAdmin() || (isReceptionist() && inMyGym(gymId));
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

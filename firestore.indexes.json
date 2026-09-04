@@ -1,0 +1,37 @@
+{
+  "indexes": [
+    { "collectionGroup": "payments", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "gym_id", "order": "ASCENDING" },
+      { "fieldPath": "created_at", "order": "ASCENDING" }
+    ] },
+    { "collectionGroup": "attendance", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "gym_id", "order": "ASCENDING" },
+      { "fieldPath": "created_at", "order": "ASCENDING" }
+    ] },
+    { "collectionGroup": "membership_records", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "gym_id", "order": "ASCENDING" },
+      { "fieldPath": "created_at", "order": "ASCENDING" }
+    ] },
+    { "collectionGroup": "equipment_records", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "gym_id", "order": "ASCENDING" },
+      { "fieldPath": "created_at", "order": "ASCENDING" }
+    ] },
+    { "collectionGroup": "activity_log", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "gym_id", "order": "ASCENDING" },
+      { "fieldPath": "created_at", "order": "ASCENDING" }
+    ] },
+    { "collectionGroup": "members", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "gym_id", "order": "ASCENDING" },
+      { "fieldPath": "created_at", "order": "ASCENDING" }
+    ] },
+    { "collectionGroup": "members", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "gym_id", "order": "ASCENDING" },
+      { "fieldPath": "updated_at", "order": "ASCENDING" }
+    ] },
+    { "collectionGroup": "users", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "gym_ids", "arrayConfig": "CONTAINS" },
+      { "fieldPath": "role", "order": "ASCENDING" }
+    ] }
+  ],
+  "fieldOverrides": []
+}

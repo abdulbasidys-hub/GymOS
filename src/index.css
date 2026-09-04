@@ -1,0 +1,2075 @@
+/* GymOS base theme.
+   These tokens seed the whole app — colours, type, spacing, elevation. Real
+   screens build on top of these variables rather than hardcoding.
+
+   Palette is deliberately literal: light mode is White / Black / Green,
+   dark mode is Black / White / Green — the same green in both (pulled from
+   the logo mark, src/assets/logo.png), so --accent is a single fixed value
+   declared once in :root rather than overridden per theme. Gray exists
+   only as a differentiator within that black/white base (borders,
+   secondary/muted text, hover tints) — never as a third brand colour.
+   Semantic colour is still reserved for meaning, not decoration — --ok
+   (green, active/allowed — the SAME green as --accent since 2026-09-04,
+   when the whole app moved onto the logo's exact #16A34A; the two are told
+   apart by placement and shape, not hue), --bad (red), --pending (neutral
+   gray), --caution (yellow). Never orange, purple, or neon.
+
+   --accent marks the single currently-active/selected/primary-actionable
+   thing in a given context: the primary button, the one active nav/tab, the
+   one focused field, the one selected option, chart lines. Never decorative,
+   never more than one per view region. Paired with --accent-ink (near-black
+   text on the green fill — green isn't dark enough for white text to clear
+   AA contrast reliably). The "OS" half of every "GymOS" wordmark
+   (.logo-word__accent, .topbar__brand-name-accent, .login__title-accent)
+   is deliberately colored with this same --accent token — "Gym" stays
+   plain --text (black/white per theme), "OS" is always the brand green,
+   wherever the wordmark appears.
+
+   Theme switching: :root below is the LIGHT theme (the default/fallback).
+   [data-theme="dark"] on <html> forces dark. No data-theme attribute at all
+   means "system" — the prefers-color-scheme media query decides. See
+   src/theme.jsx for the JS side (ThemeProvider/useTheme) that sets the
+   attribute and persists the choice.
+
+   Every alpha-blended tint elsewhere in this file is built from an "-rgb"
+   sibling of a base colour (e.g. --ok-rgb) via rgba(var(--ok-rgb), 0.1)
+   rather than a hardcoded colour, so it flips correctly between themes.
+   --tint-rgb is the generic one for plain hover/highlight/selected overlays
+   that aren't tied to a semantic colour (darkens light surfaces, lightens
+   dark ones). --surface-rgb/--border-rgb exist purely so glass surfaces can
+   alpha-blend their own surface/border colour against whatever's behind
+   them.
+
+   Elevation: --radius-sm/md/lg/xl/full replace the old single --radius, and
+   --shadow-sm/md/lg replace the old single --card-shadow. Motion tokens
+   (--ease-*, --duration-*) exist so every transition in the file shares one
+   timing system instead of ad-hoc per-selector durations. */
+
+:root {
+  --bg: #FFFFFF;
+  --bg-rgb: 255, 255, 255;
+  /* Noticeably off pure white now (was #FAFAFA — too close to --bg to
+     read as a separate layer) — the sidebar uses this, and needs to
+     visibly stand apart from the main page the way it already does in
+     dark mode (#0D0D0D vs #000000 reads clearly; #FAFAFA vs #FFFFFF
+     barely did). */
+  --surface: #EDEDED;
+  --surface-rgb: 237, 237, 237;
+  /* Pure black — bumped twice now (#E5E5E5 -> #CCCCCC -> this). Every
+     hairline in the app (card-heading underline, stat-card dividers,
+     table borders, sidebar/topbar edges, input borders) runs through
+     this one token, so this is a sweeping, deliberate change: maximum
+     visibility everywhere, not just one spot. */
+  --border: #000000;
+  --border-rgb: 0, 0, 0;
+  --text: #000000;
+  /* Also pushed to pure black (was #404040) — every nav link, label, and
+     secondary line of text in light mode reads as fully black now. */
+  --text-secondary: #000000;
+  /* The one tier that stays short of pure black on purpose — it's what
+     the app uses for genuinely de-emphasized text (row numbers,
+     timestamps), and making every text tier identical would erase that
+     distinction entirely. Still far darker than the old #737373. */
+  --muted: #262626;
+  --btn-primary-bg: var(--accent);
+  --btn-primary-text: var(--accent-ink);
+
+  --ok: #16A34A;
+  --ok-rgb: 22, 163, 74;
+  --bad: #DC2626;
+  --bad-rgb: 220, 38, 38;
+  --pending: #6B7280;         /* neutral gray — grace period / pending, NOT amber */
+  --pending-rgb: 107, 114, 128;
+  --caution: #CA8A04;         /* muted gold-yellow — warnings / heads-up only */
+  --caution-rgb: 202, 138, 4;
+  --tint-rgb: 0, 0, 0;        /* generic hover/overlay tint — darkens light surfaces */
+
+  /* Logo green — the one accent colour, same value in both themes (see the
+     dark-theme block below, which doesn't redefine it and just inherits
+     this). Primary button, active nav item, focused field, chart lines.
+     This is the final logo's exact green, sampled from the mark itself, so
+     a primary button and the logo sitting next to it are the same colour
+     rather than two greens that almost match. It was #619D25 (a yellower
+     olive) until 2026-09-04; the public site had been given #16A34A
+     separately, which is precisely the mismatch this removed. Note this
+     now equals --ok — accent-green and status-green are the same green on
+     purpose; nothing distinguishes them by hue any more. */
+  --accent: #16A34A;
+  --accent-rgb: 22, 163, 74;
+  --accent-ink: #000000;
+
+  /* Fixed near-black — used by the (currently unused-in-body) boot-screen
+     background only; kept distinct from --bg/--text on principle. */
+  --photo-wash-rgb: 17, 24, 39;
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.1);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 999px;
+
+  /* Glass tiers — alpha blended against --surface-rgb/--bg-rgb, only ever
+     applied inside an @supports(backdrop-filter) guard so unsupported
+     browsers keep a plain opaque surface instead of a translucent one with
+     no blur behind it. Blur/saturate amounts are theme-independent; alpha
+     is tuned separately per theme below since dark surfaces need to stay
+     more opaque to keep text legible over a busier backdrop. Only the
+     floating/overlay tiers remain (topbar/popover, modal) — in-flow
+     content (.card and friends) has no background at all anymore, so
+     there's nothing left for a "soft" glass tier to blend against. */
+  --glass-blur-medium: blur(16px) saturate(1.4);  /* topbar, popover */
+  --glass-blur-strong: blur(24px) saturate(1.6);  /* modal — the single biggest "frosted dialog" moment */
+  --glass-alpha-medium: 0.72;
+  --glass-alpha-strong: 0.68;
+
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --duration-fast: 140ms;  /* micro: border-color, background, color, opacity */
+  --duration-base: 220ms;  /* structural: transform lifts, box-shadow, modal open/close */
+
+  --font: "Inter Variable", "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-weight-heading: 800;
+  --font-weight-body: 400;
+}
+
+:root[data-theme="dark"] {
+  --bg: #000000;
+  --bg-rgb: 0, 0, 0;
+  /* Slightly lifted off pure black — the one deliberate gray, so
+     modal/popover/inputs read as a raised layer against a black page
+     instead of vanishing into it. */
+  --surface: #0D0D0D;
+  --surface-rgb: 13, 13, 13;
+  /* Logo green blended 35% into white (was solid var(--accent) — too loud
+     as a flat colour repeated on every hairline in the app). A literal
+     computed hex/rgb rather than color-mix(): --border-rgb feeds
+     rgba(var(--border-rgb), alpha) elsewhere, and rgba() can't take a
+     nested color-mix() result as its colour argument. */
+  --border: #C8DDB3;
+  --border-rgb: 200, 221, 179;
+  --text: #FFFFFF;
+  --text-secondary: #C7C7C7;
+  --muted: #8C8C8C;
+  --btn-primary-bg: var(--accent);
+  --btn-primary-text: var(--accent-ink);
+  /* --accent/--accent-rgb/--accent-ink intentionally not redefined here —
+     the same logo green (declared once in :root) is used in both themes,
+     so dark mode just inherits it. */
+
+  --ok: #16A34A;
+  --ok-rgb: 22, 163, 74;
+  --bad: #DC2626;
+  --bad-rgb: 220, 38, 38;
+  --pending: #9CA3AF;
+  --pending-rgb: 156, 163, 175;
+  --caution: #EAB308;
+  --caution-rgb: 234, 179, 8;
+  --tint-rgb: 255, 255, 255; /* lightens dark surfaces instead of darkening them */
+
+  /* Dark-mode elevation leans on a glow + inset top-highlight rather than a
+     black drop-shadow, which reads as invisible on an already-near-black
+     canvas. --shadow-lg gets a barely-there accent rim — the only place
+     accent touches a shadow, and only at the highest elevation tier. */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(var(--accent-rgb), 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+
+  --glass-alpha-medium: 0.58;
+  --glass-alpha-strong: 0.52;
+}
+
+@media (prefers-color-scheme: dark) {
+  /* "system" preference: no explicit data-theme set, and the OS is dark. */
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    --bg: #000000;
+    --bg-rgb: 0, 0, 0;
+    --surface: #0D0D0D;
+    --surface-rgb: 13, 13, 13;
+    --border: #C8DDB3;
+    --border-rgb: 200, 221, 179;
+    --text: #FFFFFF;
+    --text-secondary: #C7C7C7;
+    --muted: #8C8C8C;
+    --btn-primary-bg: var(--accent);
+    --btn-primary-text: var(--accent-ink);
+    /* Same as the explicit dark-theme block above — --accent inherits the
+       single green declared in :root, not redefined per theme. */
+
+    --ok: #16A34A;
+    --ok-rgb: 22, 163, 74;
+    --bad: #DC2626;
+    --bad-rgb: 220, 38, 38;
+    --pending: #9CA3AF;
+    --pending-rgb: 156, 163, 175;
+    --caution: #EAB308;
+    --caution-rgb: 234, 179, 8;
+    --tint-rgb: 255, 255, 255;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(var(--accent-rgb), 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+
+    --glass-alpha-medium: 0.58;
+    --glass-alpha-strong: 0.52;
+  }
+}
+
+/* ---- "Modern Light" component tuning (Stitch design import) ----
+   App-wide now (every role shares .card/.table/.tabs/.btn/.pill/.field),
+   so these apply everywhere rather than being scoped to one page. Every
+   rule only re-tunes classes that already existed — no new components,
+   no behavior changes. Light-only by nature (they lean on --accent/
+   --tint-rgb, which stay theme-aware via the token blocks above), so
+   dark mode is unaffected in look-and-feel beyond the shape/shadow
+   tightening already covered by the :root radius/shadow tokens. */
+
+/* Avatar-initial bubble placed next to each shell's existing account-name
+   text — same data (account.name), purely decorative. */
+.topbar__identity { display: flex; align-items: center; gap: 10px; }
+.avatar-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  color: var(--accent-ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.avatar-badge--lg { width: 56px; height: 56px; font-size: 22px; }
+/* The member's own photo on their profile page (MemberProfile.jsx). Sized
+   for FACE RECOGNITION, not decoration — the whole point of storing a
+   photo is that whoever is on the desk can look up from the screen and
+   confirm it's the same person. At the old 56px (--lg) a face was a
+   thumbnail; 112px makes it identifiable while still sitting comfortably
+   beside the name/number block it's paired with. --lg stays as it was for
+   the smaller register-form preview, which is a "did the right file
+   attach?" check rather than an identification aid. */
+.avatar-badge--xl { width: 112px; height: 112px; font-size: 44px; }
+@media (max-width: 640px) {
+  .avatar-badge--xl { width: 84px; height: 84px; font-size: 33px; }
+}
+/* A real member photo (MemberProfile.jsx) reuses the exact same badge —
+   same shape as the initial-letter fallback it replaces, just an <img>
+   instead of a <span>, cover-fit so non-square photos still fill the
+   circle cleanly. */
+img.avatar-badge { object-fit: cover; }
+
+.member-photo { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+.member-photo__edit {
+  font-size: 11px;
+  color: var(--muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+.member-photo__edit:hover { color: var(--text); }
+
+/* RegisterMember.jsx's own optional photo field — a chosen file's preview
+   next to a Remove button, in place of the raw <input type="file">. */
+.member-photo-picker { display: flex; align-items: center; gap: 12px; }
+
+.btn--primary { border-radius: var(--radius-lg); }
+
+/* CheckIn's two independent search boxes (name/phone + member number —
+   see the comment atop CheckIn.jsx for why they stay separate) sit side
+   by side like a single search bar on desktop, exactly equal width
+   (flex-basis 0 ignores each field's own content/prefix-badge width),
+   while remaining the same two fields with the same bindings. */
+.search-stack { display: flex; flex-direction: row; gap: 16px; max-width: 640px; }
+.search-stack .field { flex: 1 1 0%; min-width: 0; }
+@media (max-width: 640px) {
+  .search-stack { flex-direction: column; }
+}
+
+input:where(:not([type="checkbox"]):not([type="radio"])):focus,
+select:focus {
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.15);
+}
+
+/* Tonal green header row instead of sitting flush with the card body —
+   bumped up from 0.04 for real visibility. One rule, --accent-rgb is the
+   same green in both themes, so every table everywhere picks this up. */
+.table th { background: rgba(var(--accent-rgb), 0.18); }
+
+/* Status/plan chips read as flat "wash" tags without a visible border. */
+.pill--active,
+.pill--bad,
+.pill--caution { border: none; }
+
+/* ---- sidebar shell ----
+   Replaces each role's old topbar-plus-horizontal-nav with a persistent
+   left sidebar: brand, primary action if the role has one, nav links, and
+   a footer holding identity/theme/settings/sign-out together (there's no
+   separate top strip anymore — everything chrome-related lives in one
+   place). Every nav link below still points at the exact route it always
+   did — DeskHome.jsx/OwnerDashboard.jsx/AdminDashboard.jsx/
+   AffiliateHome.jsx just render it inside <aside> now instead of inside
+   <nav>/.tabs-row.
+
+   The shell itself is pinned to exactly one viewport height and never
+   scrolls — only the routed page content does (.shell__main > .page
+   below). Sign out and everything else in .sidebar are siblings of that
+   scrolling region rather than inside it, so none of it can ever scroll
+   out of frame no matter how long a page's content gets. */
+/* height:100% (of #root/body/html), not a raw 100vh/100dvh — sizing
+   against the actual container instead of assuming .shell owns the
+   whole viewport itself (BUILD.md §15: a since-removed custom title bar
+   briefly ate real space at the top of that viewport, and the raw-vh
+   version of this rule rendered .shell taller than the room it actually
+   had as a result — broke the sidebar's fixed positioning and forced a
+   spurious extra scroll; kept as height:100% since it's the more
+   correct rule regardless, not just a fix for that one case). */
+.shell { height: 100%; display: flex; overflow: hidden; }
+.sidebar {
+  width: 248px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 28px 16px;
+  border-right: 1px solid var(--border);
+  /* A subtly different shade from the main page (--surface vs --bg) —
+     chrome reads as a distinct layer without being a second real color. */
+  background: var(--surface);
+  height: 100%;
+  overflow-y: auto;
+}
+.sidebar__brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; margin-bottom: 24px; }
+/* Multi-branch owners only (BUILD.md §6) — OwnerDashboard.jsx renders this
+   only when there's more than one branch to switch between, so a
+   single-branch owner's sidebar never has this element at all. */
+.branch-switcher {
+  width: 100%;
+  margin: -12px 0 24px;
+  padding: 9px 30px 9px 11px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background-color: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+.sidebar__primary { margin-bottom: 20px; padding: 0 4px; }
+.sidebar__primary .btn { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.sidebar__nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+}
+.sidebar__link svg { flex-shrink: 0; opacity: 0.85; }
+.sidebar__link:hover { background: rgba(var(--tint-rgb), 0.05); color: var(--text); }
+.sidebar__link.active { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.sidebar__link.active svg { opacity: 1; }
+/* Everything that used to live in the slim top strip (identity, theme
+   toggle, settings) now lives here instead — a single self-contained
+   "account" card rather than three loose, mismatched rows: who's signed
+   in on top, an icon toolbar (theme / settings / sign out) underneath.
+   It never scrolls off screen (.sidebar itself doesn't scroll away, see
+   its own rule above). */
+.sidebar__footer { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.sidebar__account {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: rgba(var(--tint-rgb), 0.035);
+}
+.sidebar__identity { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.sidebar__identity .topbar__user {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sidebar__actions { display: flex; align-items: center; gap: 8px; }
+/* Sign out reads as a distinct, slightly more consequential action than
+   the theme/settings icons beside it — same icon-button chrome at rest,
+   a warning tint only on hover/focus so it doesn't shout at rest. */
+.sidebar__signout:hover,
+.sidebar__signout:focus-visible {
+  border-color: var(--bad);
+  color: var(--bad);
+}
+
+.shell__main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+/* The one scrolling region in the whole shell. */
+.shell__main > .page { flex: 1; min-height: 0; overflow-y: auto; }
+
+@media (max-width: 860px) {
+  .shell { flex-direction: column; }
+  .sidebar {
+    width: 100%;
+    height: auto;
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    padding: 12px 16px;
+    gap: 16px;
+    overflow-x: auto;
+    overflow-y: visible;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar__brand { margin-bottom: 0; flex-shrink: 0; }
+  .sidebar__primary { margin-bottom: 0; padding: 0; flex-shrink: 0; }
+  .sidebar__nav { flex-direction: row; flex: none; }
+  .sidebar__link { white-space: nowrap; }
+  .sidebar__footer {
+    flex-direction: row;
+    margin-top: 0;
+    margin-left: auto;
+    padding-top: 0;
+    padding-left: 16px;
+    border-top: none;
+    border-left: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* No underlines anywhere, on any link/nav element, active or hovered —
+   color/weight/border carry "active" and "clickable" instead (see .tab,
+   .nav a, .table a, StatusBadge, etc.). */
+a { text-decoration: none; color: inherit; }
+
+input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
+
+/* Keyboard-focus ring — only for elements whose own :focus style (input/
+   select's border-color swap) doesn't already show one. Never shown for a
+   mouse click (:focus-visible, not :focus), so it doesn't add a ring to
+   every card/button tap the way a plain outline reset would. Accent, not
+   monochrome — the single most-repeated "here's where you are" cue in the
+   whole app. */
+a:focus-visible,
+button:focus-visible,
+.tab:focus-visible,
+.row--expandable:focus-visible,
+.card--link:focus-visible,
+.stat-card--link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* dvh (falls back to vh where unsupported) specifically on html, not
+   further down the chain — mobile browsers resize their address bar in
+   and out of the "large" viewport, and dvh is what tracks that instead
+   of leaving content clipped behind it; a plain % height anywhere below
+   this can't recover that awareness on its own, it has to inherit it. */
+html { height: 100vh; height: 100dvh; }
+html, body, #root { height: 100%; }
+
+body {
+  font-family: var(--font);
+  /* Flat — no photo, no wash, no texture. Every screen (dashboards, forms,
+     the shell's page gaps) sits on the plain theme background now. */
+  background-color: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The only window control on a frameless Electron window (BUILD.md §15
+   — CloseButton.jsx; supersedes an earlier full custom title bar per
+   explicit follow-up request). Floats over the page — position:fixed,
+   not part of the layout flow, so it needs no reserved space the way a
+   title bar strip would. Bare "×", deliberately no circle/backdrop
+   (explicit request — reads as part of the window chrome rather than
+   app UI, "blend into the software"). Mostly-transparent until hovered,
+   turning solid --bad (red) then — the universal close-button
+   convention — the click target (width/height) stays a full 32px even
+   though only the icon paints, so it's still easy to hit precisely. */
+.app-close-btn {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 1000;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+}
+.app-close-btn:hover { opacity: 1; color: var(--bad); }
+
+/* ---- Phase 1 boot screen ---- */
+
+.boot {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  /* Same optional-photo-with-automatic-fallback layering as body's own
+     background (see the note there) — falls back to the vignette + dot-grid
+     below if public/background.jpg doesn't exist. The solid wash on top
+     fakes the photo layer sitting at ~40% opacity (see body's own note). */
+  background:
+    linear-gradient(rgba(var(--photo-wash-rgb), 0.6), rgba(var(--photo-wash-rgb), 0.6)),
+    url("/background.jpg") center/cover no-repeat,
+    radial-gradient(1200px 600px at 50% -10%, rgba(var(--tint-rgb), 0.04), transparent 60%),
+    radial-gradient(rgba(var(--tint-rgb), 0.09) 1px, transparent 1px) 0 0/24px 24px,
+    var(--bg);
+  padding: 24px;
+}
+
+.boot__card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 44px 34px;
+  text-align: center;
+}
+
+.boot__mark {
+  font-size: 38px;
+  font-weight: var(--font-weight-heading);
+  letter-spacing: -0.02em;
+}
+.boot__mark span { color: var(--text-secondary); }
+
+.boot__phase {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.boot__status {
+  margin-top: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+  padding: 9px 14px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: rgba(var(--tint-rgb), 0.03);
+}
+.boot__status .dot {
+  width: 8px; height: 8px; border-radius: var(--radius-full);
+  background: var(--muted);
+}
+.boot__status.is-ok  .dot { background: var(--ok);  box-shadow: 0 0 0 4px rgba(var(--ok-rgb), 0.15); }
+.boot__status.is-bad .dot { background: var(--bad); box-shadow: 0 0 0 4px rgba(var(--bad-rgb), 0.15); }
+
+.boot__note {
+  margin-top: 20px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ---- app shell ---- */
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .popover {
+    background: rgba(var(--surface-rgb), var(--glass-alpha-medium));
+    backdrop-filter: var(--glass-blur-medium);
+    -webkit-backdrop-filter: var(--glass-blur-medium);
+  }
+}
+.topbar__user { color: var(--text-secondary); font-size: 14px; }
+
+.page { padding: 40px 28px; max-width: 1000px; width: 100%; margin: 0 auto; }
+.page h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.015em; }
+/* Stitch's page-header pattern: a big title plus a muted one-line
+   subtitle, sitting above the panels — "New Member Registration / Complete
+   the form below...", "Financial Reports / Overview of revenue...". */
+.page-header { margin-bottom: 32px; }
+.page-header h1 { margin-bottom: 6px; }
+.page-header p { color: var(--text-secondary); font-size: 15px; }
+
+.muted { color: var(--text-secondary); font-size: 14px; line-height: 1.6; }
+
+/* ---- buttons ---- */
+
+.btn {
+  font: inherit;
+  font-size: 14px;
+  padding: 9px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition-property: border-color, background, opacity, transform;
+  transition-duration: var(--duration-fast);
+  transition-timing-function: var(--ease-standard);
+  /* .btn is also used on <Link>/<a> (e.g. "Register a gym") — strip the
+     browser-default underline and give it the same box model as <button>. */
+  display: inline-block;
+  text-decoration: none;
+}
+.btn:hover { border-color: var(--text); }
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:disabled { opacity: 0.55; cursor: default; }
+.btn--primary {
+  background: var(--btn-primary-bg);
+  border-color: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  width: 100%;
+  padding: 11px 16px;
+  font-weight: 600;
+  /* Accent-tinted glow, not a neutral black shadow — a saturated colour
+     glow stays visible against a dark surface the way flat black wouldn't. */
+  box-shadow: 0 2px 8px rgba(var(--accent-rgb), 0.18), 0 8px 24px rgba(var(--accent-rgb), 0.28);
+}
+.btn--primary:hover { opacity: 0.85; transform: translateY(-1px); }
+.btn--icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+/* A filter icon with a non-default option selected — same "something's
+   active here" cue .tab.active uses, just without the pill background. */
+.btn--icon-active { border-color: var(--text); color: var(--text); }
+
+/* Milestone 3 (BUILD.md §15) — the sidebar's sync icon-button while a
+   cycle is running. */
+@keyframes sidebar-sync-spin { to { transform: rotate(360deg); } }
+.sidebar__sync--spinning svg { animation: sidebar-sync-spin 1s linear infinite; }
+
+/* Result popup for a MANUALLY-triggered sync only (BUILD.md §15) — see
+   SyncToast.jsx. Bottom-right, above everything, clears itself (click or
+   auto-dismiss); success uses --accent (green), failure uses --bad (red)
+   — the same tokens .form-error/the stat-card dots already use, not new
+   colors. */
+@keyframes sync-toast-in {
+  from { transform: translateY(12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.sync-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  animation: sync-toast-in var(--duration-base) var(--ease-out);
+}
+.sync-toast svg { width: 18px; height: 18px; flex-shrink: 0; }
+.sync-toast--success { color: var(--accent); border-color: rgba(var(--accent-rgb), 0.35); }
+.sync-toast--error { color: var(--bad); border-color: rgba(var(--bad-rgb), 0.35); }
+
+/* A page heading's right-side controls (filter + search, sometimes an
+   action button) — kept to one row regardless of how many there are. */
+.page-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.search-toggle { display: flex; align-items: center; gap: 8px; }
+.search-toggle__input {
+  width: 180px;
+  max-width: 40vw;
+  font: inherit;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+.search-toggle__input:focus { border-color: var(--accent); }
+
+.filter-menu { position: relative; }
+.popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  /* Anchored to the filter icon's LEFT edge, extending rightward — it's
+     always the leftmost of the header controls, so this is the direction
+     with room to grow instead of running off the edge of a narrow card. */
+  left: 0;
+  background: var(--surface);
+  border: 1px solid rgba(var(--border-rgb), 0.7);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 6px;
+  width: max-content;
+  min-width: 190px;
+  max-width: calc(100vw - 40px);
+  z-index: 10;
+}
+.popover__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 14px;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+.popover__item:hover { background: rgba(var(--tint-rgb), 0.06); }
+/* Keyboard arrow-key navigation (CountryPicker.jsx) — separate from
+   .popover__item--active (FilterMenu's "this option is currently applied")
+   since here nothing is "applied" until Enter/click actually picks one. */
+.popover__item--highlighted { background: rgba(var(--tint-rgb), 0.08); }
+.popover__item--active { color: var(--accent); font-weight: 600; }
+
+/* CountryPicker.jsx — a .field-style text input whose suggestion dropdown
+   matches the input's own width (unlike the filter/search .popover, which
+   sizes to its content) and scrolls once it hits its max-height. */
+.country-picker { position: relative; }
+.country-picker__list { width: 100%; max-height: 260px; overflow-y: auto; }
+
+/* ---- theme toggle: a literal colour-swatch preview of the theme you'd
+   switch TO, not the current one — dark right now -> button shows light
+   (white), light right now -> button shows dark (near-black). Deliberately
+   hardcoded (not var()-based): the whole point is showing the OTHER
+   theme's fixed colour, independent of whichever theme is currently active. ---- */
+
+.theme-toggle {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 1px solid;
+  transition: opacity var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
+  flex-shrink: 0;
+}
+.theme-toggle:hover { opacity: 0.85; }
+.theme-toggle--to-light { background: #FFFFFF; color: #000000; border-color: #E5E5E5; }
+.theme-toggle--to-dark { background: #000000; color: #FFFFFF; border-color: #2A2A2A; }
+
+/* ---- login (centered card — used by SetPasswordPage) ---- */
+
+.login {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  /* Full-bleed photo behind the login card, dimmed with a fixed near-black
+     wash (--photo-wash-rgb, theme-independent on purpose — see the note on
+     that token) so the theme-toggle button and the card itself both stay
+     legible regardless of what's in the photo. .login__card sitting on top
+     is fully opaque, so the photo never competes with the form itself.
+     Referenced relative to this file (src/assets/home.jpg), not an
+     absolute "/home.jpg" — an absolute public/-folder reference resolves
+     fine on real HTTP hosting but 404s under Electron's file:// load. */
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(rgba(var(--photo-wash-rgb), 0.55), rgba(var(--photo-wash-rgb), 0.55)),
+    url("./assets/home.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.login__card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  border: 1px solid rgba(var(--border-rgb), 0.7);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.login__mark { font-size: 30px; font-weight: var(--font-weight-heading); text-align: center; letter-spacing: -0.02em; }
+.login__mark span { color: var(--text-secondary); }
+.login__sub { text-align: center; color: var(--text-secondary); font-size: 14px; margin-top: -8px; }
+/* Logo beside the name+tagline stack, centered as a group in the card.
+   Logo is a fixed 49px (Logo size={49} in the JSX). .login__title's font
+   size is NOT set here — it's applied inline from LoginPage.jsx, which
+   measures the tagline's real rendered width and grows "GymOS" until it
+   matches exactly, so their left edges (align-items:flex-start below) and
+   right edges both line up. That can't be done with a fixed number here:
+   "GymOS" and "Run Your Gym Smarter" are different strings, so no single
+   static font-size relationship holds between them the way a fixed
+   line-height sum can for a simple height match. line-height is a
+   unitless multiplier (not a fixed px value) specifically so it keeps
+   scaling correctly whatever font-size the JS lands on. */
+.login__header { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 12px; margin-bottom: 10px; }
+/* Same lockup, now clickable on the web build (back to the marketing
+   site). Inherit the heading/tagline colours rather than picking up the
+   global link colour, so turning it into an <a> changes nothing visually. */
+.login__header--link { text-decoration: none; color: inherit; }
+.login__header--link:hover .login__title { opacity: 0.85; }
+.login__header-text { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.login__title { font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
+.login__title-accent { color: var(--accent); }
+.login__tagline { color: var(--text-secondary); font-size: 11px; letter-spacing: -0.01em; line-height: 1.3; white-space: nowrap; }
+.login__footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 8px; }
+.login__error {
+  background: rgba(var(--bad-rgb), 0.1);
+  border: 1px solid rgba(var(--bad-rgb), 0.3);
+  color: var(--bad);
+  font-size: 13px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+}
+
+
+/* Base styling for any plain text/number/date input or <select>, even
+   outside a .field label (e.g. inline table-cell edit controls) — otherwise
+   they fall back to stark browser-default chrome that clashes with the
+   theme. Excludes checkbox/radio, which rely on native rendering and are
+   styled separately (.checkbox-row, .plan-option, accent-color rule above).
+
+   The exclusion is wrapped in :where(...) specifically so it contributes
+   ZERO specificity — a bare :not([type="checkbox"]):not([type="radio"])
+   would otherwise carry the specificity of both attribute selectors,
+   putting this "just a sensible default" rule at (0,2,1): higher than
+   .field input, .field__control input, .member-id input, and basically
+   every single-class descendant selector for an input anywhere else in
+   this file, so THIS would silently win over all of them regardless of
+   source order — not a tie broken by cascade order, a specificity fight
+   this rule was quietly winning by accident. (.username-combo input's
+   !important on border-radius nearby is an old workaround for exactly
+   this — a real fix here is what actually removes the need for that.)
+   :where() keeps the same selector behaviour with the specificity of a
+   plain `input`, so every more-specific rule downstream wins the way its
+   author obviously intended. */
+input:where(:not([type="checkbox"]):not([type="radio"])), select {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+input:where(:not([type="checkbox"]):not([type="radio"])):focus, select:focus { border-color: var(--accent); }
+select {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2371717a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+select option { background: var(--surface); color: var(--text); }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+/* Two .field labels stacked directly (no .row2 between them) otherwise
+   touch — .row2's own `gap` only spaces fields it's grouping side by side. */
+.field + .field { margin-top: 14px; }
+/* ...but the two fields INSIDE a .row2 are adjacent siblings too, so the
+   rule above was also firing on the right-hand one and pushing it 14px
+   below its partner. That is the misalignment seen in every modal with a
+   paired row (gym name/prefix, name/amount, new/confirm password, field
+   name/type, name/username). The grid's own `gap` already does this
+   spacing, so the sibling margin must be cancelled for grid children —
+   they are laid out by the grid, not by document flow. */
+.row2 > .field + .field { margin-top: 0; }
+.field span { font-size: 13px; color: var(--muted); }
+.field input {
+  font: inherit;
+  padding: 11px 13px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+.field select {
+  /* background-color (not the `background` shorthand) so this doesn't wipe
+     out the chevron background-image set on the base `select` rule above. */
+  font: inherit;
+  padding: 11px 30px 11px 13px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background-color: var(--bg);
+  color: var(--text);
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+.field textarea {
+  font: inherit;
+  padding: 11px 13px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  resize: vertical;
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
+.field input:disabled { color: var(--muted); cursor: default; }
+
+/* Optional icon prefix inside a .field's input (CheckIn's search box, the
+   login form) — wraps the existing <input>, doesn't change it. Two earlier
+   attempts at this padding failed for real reasons, both now fixed at the
+   source rather than patched around here: the base input rule up near the
+   top of the file used to carry accidentally-high specificity (see its own
+   comment) that silently beat this regardless of file order, and .field's
+   own icon-less input didn't have this problem — this rule's plain, low
+   specificity now wins the normal way.
+
+   Symmetric 44px on both sides — the icon needs the room on the left, so
+   the same space is mirrored on the right rather than the input looking
+   lopsided. .field__control is a row flex container, so without an
+   explicit width the <input> inside it falls back to the browser's
+   intrinsic ~20-character width instead of filling the field — flex:1 +
+   width:100% is what actually makes it stretch edge to edge like every
+   non-icon .field input already does (and like the Sign in button below
+   it). */
+.field__control { position: relative; display: flex; align-items: center; }
+.field__control svg {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+.field__control input { padding: 11px 44px; flex: 1; width: 100%; min-width: 0; }
+
+/* ---- splash ---- */
+
+.splash {
+  min-height: 100%;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  text-align: center;
+  padding: 24px;
+}
+.splash__mark { font-size: 30px; font-weight: var(--font-weight-heading); letter-spacing: -0.02em; }
+.splash__mark span { color: var(--text-secondary); }
+
+/* ---- logo ---- */
+
+.logo-img { display: inline-block; vertical-align: middle; width: auto; }
+.logo-word { font-weight: var(--font-weight-heading); letter-spacing: -0.02em; }
+.logo-word__accent { color: var(--accent); }
+.logo-icon-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 25%;
+  background: var(--text);
+  color: var(--bg);
+  font-weight: var(--font-weight-heading);
+}
+
+.login__logo { text-align: center; font-size: 30px; }
+.splash__logo { font-size: 28px; }
+
+/* The old giant rotated logo watermark (components/Watermark.jsx,
+   .bg-watermark/.page-watermark*) is gone — replaced by the dot-grid texture
+   on body above, plus .login-split__panel::before for the one spot (the
+   login hero panel) that wants its own deliberate decorative touch. */
+
+.topbar__brand-name { font-weight: var(--font-weight-heading); letter-spacing: -0.02em; color: var(--text); }
+.topbar__brand-name-accent { color: var(--accent); }
+/* Owner topbar: software name on top, the current gym's name stacked
+   directly beneath it, both sitting beside the logo. */
+.topbar__brand-text { display: flex; flex-direction: column; line-height: 1.25; }
+.topbar__brand-gym { color: var(--muted); font-weight: 600; font-size: 12px; }
+
+/* ---- cards, forms, tables ---- */
+
+.page-lead { margin-bottom: 22px; }
+.hint { margin-top: 12px; }
+.hint a { color: var(--text); }
+
+/* A quiet entrance, not a flashy one — plays once per mount (i.e. once per
+   navigation to a route with this card, since React doesn't remount it on
+   ordinary re-renders/state updates within the same page). */
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* No more boxed container — a "card" is now just a content section, made
+   visible by whitespace and typography instead of a bordered/shadowed
+   panel. Data still needs to stay scannable without that boundary, so the
+   pieces that actually carry the reading structure (table row dividers,
+   bordered inputs, the heading weight bump below, generous section-to-
+   section spacing) do more work than before — see each rule's own note. */
+.card {
+  background: none;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
+  /* NOT "... both" — animation-fill-mode:both would make this element
+     PERMANENTLY retain a non-none `transform` (the keyframe's resting
+     translateY(0)) after the animation finishes, and per the CSS spec any
+     ancestor with a non-none transform becomes the CONTAINING BLOCK for
+     `position:fixed` descendants — silently trapping any Modal opened from
+     a button inside this card into the card's own small box instead of the
+     viewport. Without "both", the animation still plays once on mount, but
+     transform correctly reverts to this rule's own value (unset -> none)
+     once it's done. Real regression, found via the Register-a-gym modal
+     rendering "out of frame" — see BUILD.md §9. */
+  animation: card-in 0.28s var(--ease-out);
+}
+/* A generous gap stands in for the border that used to separate sections —
+   "Negative Space as Structure" rather than a drawn line. */
+.card + .card { margin-top: 48px; }
+/* Stitch's headline-md scale (24px/700, tight tracking) — every section
+   heading in the app runs through this one rule, so bumping it here is
+   what actually shifts "generic settings-panel" toward "designed product"
+   on every single page that has a card, not just the ones rebuilt below.
+   Now doubling as the primary "new section starts here" cue since there's
+   no box to draw that boundary anymore. */
+.card h2 { font-size: 22px; font-weight: 700; margin-bottom: 24px; letter-spacing: -0.01em; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+/* A card that's really a preview of a longer list elsewhere (dashboard's
+   capped activity/attention tables) — the whole card is one click target to
+   the full page, so rows inside it are plain text, not nested links. Flat
+   at rest, a quiet tint reveals the click target on hover/focus rather than
+   the old lift-and-shadow (nothing to lift off of anymore). */
+.card--link {
+  cursor: pointer;
+  margin: -20px -24px;
+  padding: 20px 24px;
+  border-radius: var(--radius-lg);
+  transition: background var(--duration-base) var(--ease-standard);
+}
+.card--link:hover { background: rgba(var(--tint-rgb), 0.035); }
+
+.row2 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+/* Grid items default to min-width: auto, which floors them at their input's
+   intrinsic content width — inside a narrow container (e.g. a modal) that
+   overflows the row rather than letting the input shrink. */
+.row2 > * { min-width: 0; }
+@media (max-width: 520px) { .row2 { grid-template-columns: 1fr; } }
+
+/* Two fields that are peers, not a primary/secondary pair (bank name +
+   account number, new password + confirm password) — equal width reads as
+   a matched set instead of one field outweighing the other. */
+.row2--even { grid-template-columns: 1fr 1fr; }
+
+/* ---- multi-panel form layout ----
+   Stitch's Member Registration pattern: grouped sections as separate
+   panels in a main column, a narrower side column for plan/secondary
+   panels, one footer bar spanning both for the submit action — instead of
+   one long single-column card with every field stacked in sequence. */
+.form-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: start; }
+.form-layout__main, .form-layout__side { display: flex; flex-direction: column; gap: 24px; }
+.form-layout__footer {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+@media (max-width: 860px) {
+  .form-layout { grid-template-columns: 1fr; }
+  .form-layout__footer { justify-content: stretch; }
+  .form-layout__footer .btn { width: 100%; }
+}
+
+/* Resets the global .field + .field top margin — .search-stack's own flex
+   `gap` (see its rule above) already spaces the two fields, so the default
+   margin would double up the gap between them. */
+.search-stack .field { margin-top: 0; }
+
+.form-actions { margin-top: 18px; }
+/* For action buttons packed into a table cell, where the default top margin
+   (meant to space a form-actions block from the form above it) is wrong. */
+.form-actions--row { margin-top: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.form-actions--row .notice { flex-basis: 100%; margin-top: 8px; }
+.form-error { color: var(--bad); font-size: 13px; margin-top: 10px; }
+.phone-edit { display: inline-flex; gap: 6px; align-items: center; }
+.phone-edit input { max-width: 160px; }
+.notice {
+  background: rgba(var(--tint-rgb), 0.035);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 13px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  margin-top: 10px;
+  line-height: 1.5;
+}
+.notice code {
+  background: rgba(var(--tint-rgb), 0.08);
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.btn--inline { width: auto; display: inline-flex; }
+
+.table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.table th, .table td {
+  text-align: left;
+  padding: 13px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.table th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.table tr:last-child td { border-bottom: none; }
+.table tbody tr:hover td { background: rgba(var(--tint-rgb), 0.025); transition: background var(--duration-fast) var(--ease-standard); }
+/* A row-level link (e.g. member/gym name linking to its detail page) stays
+   on-theme instead of falling back to browser-default blue/purple. */
+.table a { color: var(--text); }
+
+.pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.pill--active {
+  color: var(--ok);
+  border-color: rgba(var(--ok-rgb), 0.35);
+  background: rgba(var(--ok-rgb), 0.1);
+}
+.pill--bad {
+  color: var(--bad);
+  border-color: rgba(var(--bad-rgb), 0.35);
+  background: rgba(var(--bad-rgb), 0.1);
+}
+.pill--warn {
+  color: var(--pending);
+  border-color: var(--border);
+  background: rgba(var(--tint-rgb), 0.05);
+}
+.pill--caution {
+  color: var(--caution);
+  border-color: rgba(var(--caution-rgb), 0.35);
+  background: rgba(var(--caution-rgb), 0.1);
+}
+
+.empty { color: var(--text-secondary); font-size: 14px; padding: 6px 0; }
+
+/* ---- expandable rows ---- */
+
+.row--expandable { cursor: pointer; transition: background var(--duration-fast) var(--ease-standard); }
+.row--expandable:hover { background: rgba(var(--tint-rgb), 0.025); }
+.row__caret { width: 20px; color: var(--muted); }
+.row__expanded td {
+  background: rgba(var(--tint-rgb), 0.02);
+  padding: 16px 18px;
+}
+
+/* ---- entry verdict ----
+   Decision-critical (check-in allow/deny) — kept fully opaque, no glass,
+   so legibility is never softened by translucency. */
+
+.verdict {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  padding: 22px;
+  margin-top: 28px;
+  margin-bottom: 22px;
+}
+.verdict--ok { border-color: rgba(var(--ok-rgb), 0.35); background: rgba(var(--ok-rgb), 0.08); }
+.verdict--bad { border-color: rgba(var(--bad-rgb), 0.35); background: rgba(var(--bad-rgb), 0.08); }
+.verdict__headline { font-size: 18px; font-weight: 700; margin-bottom: 14px; }
+.verdict--ok .verdict__headline { color: var(--ok); }
+.verdict--bad .verdict__headline { color: var(--bad); }
+.verdict__rows { display: flex; flex-direction: column; gap: 8px; }
+.verdict__row { display: flex; align-items: center; justify-content: space-between; font-size: 14px; }
+
+/* ---- history list ---- */
+
+.history { list-style: none; display: flex; flex-direction: column; }
+.history__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  gap: 12px;
+}
+.history__item:last-child { border-bottom: none; }
+
+/* ---- plan picker ---- */
+
+.plan-picker { display: flex; flex-direction: column; gap: 10px; }
+.plan-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 15px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard);
+}
+.plan-option:hover { border-color: var(--text); }
+.plan-option--selected { border-color: var(--accent); background: rgba(var(--accent-rgb), 0.08); }
+.plan-option input { accent-color: var(--accent); }
+.plan-option__name { font-weight: 600; flex: 1; }
+.plan-option__meta { color: var(--text-secondary); font-size: 13px; }
+.plan-option__price { font-weight: 600; }
+
+/* ---- misc layout ---- */
+
+/* Stitch's "Revenue Breakdown" pattern, flattened further: several big
+   numbers in a row separated by hairline dividers, with no panel box
+   around them at all — the dividers plus the generous bottom margin are
+   what read as "one group of stats" instead of a background/border/
+   shadow. Every dashboard/summary page that already used .stat-grid or
+   .stat-grid--row picks this up with no JSX changes. */
+.stat-grid, .stat-grid--row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin-bottom: 40px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+  animation: card-in 0.28s var(--ease-out);
+}
+/* Dashboard summary rows (admin's 6, owner's 5): always exactly one row,
+   never wrapping — narrower per-metric width since there are more of them
+   on screen at once (see .stat-card--compact below). */
+.stat-grid--row { flex-wrap: nowrap; }
+/* A .card followed directly by a .stat-grid (e.g. AffiliateDetailPage) has
+   no gap otherwise — .card's own spacing rule only fires between two .cards. */
+.card + .stat-grid, .card + .stat-grid--row { margin-top: 48px; }
+
+.stat-card {
+  flex: 1 1 160px;
+  min-width: 0;
+  padding: 2px 28px;
+  border-left: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+/* Every metric gets its divider, including the first one in the row (e.g.
+   "Today's attendance") — no first-child exception, so the line reads
+   consistently across the whole row instead of appearing to skip one. */
+.stat-card__label { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+.stat-card__value { font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.015em; }
+.stat-card__value--warn { color: var(--caution); }
+/* Small status dot next to a card's label (spec: "cards with icons or small
+   indicators") — stays monochrome-first, only colours in the same three
+   semantic buckets used everywhere else (ok/bad/pending). */
+.stat-card__dot { width: 7px; height: 7px; border-radius: var(--radius-full); flex-shrink: 0; background: var(--muted); }
+.stat-card__dot--ok { background: var(--ok); }
+.stat-card__dot--bad { background: var(--bad); }
+.stat-card__dot--caution { background: var(--caution); }
+/* A stat-card that's also a <Link> — same cell, just clickable through to
+   the related page/filtered records. A quiet background tint instead of a
+   lift, since it's a borderless cell inside a shared panel now, not its
+   own floating card. */
+.stat-card--link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+.stat-card--link:hover { background: rgba(var(--tint-rgb), 0.05); }
+
+.stat-card--compact { padding: 2px 20px; }
+.stat-card--compact .stat-card__label { font-size: 10.5px; margin-bottom: 8px; }
+.stat-card--compact .stat-card__value { font-size: 24px; }
+
+.back-link {
+  display: inline-block;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: none;
+  margin-bottom: 16px;
+  /* Reset for when this is a <button> (navigate(-1), so "back" always
+     returns to wherever the page was actually entered from) rather than a
+     <Link> to a fixed route. */
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+.back-link:hover { color: var(--text); }
+
+.status-blocks { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 24px; }
+@media (max-width: 520px) { .status-blocks { grid-template-columns: 1fr; } }
+.status-block { position: relative; }
+/* Same "heading underline stands in for the box" treatment as .card h2 —
+   .status-block__head can wrap either an h2 or an h3 depending on context. */
+.status-block__head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+.status-block__head h2 { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+.status-block__head h3 { font-size: 15px; font-weight: 700; }
+.status-block__meta { color: var(--text-secondary); font-size: 13px; }
+
+.member-id { display: flex; align-items: center; gap: 18px; margin-bottom: 20px; }
+.member-id__no {
+  display: inline-block;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 12px;
+  background: rgba(var(--tint-rgb), 0.05);
+  border: 1px solid var(--border);
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+}
+.member-id h1 { margin: 0; }
+.member-id input { font-size: 20px; font-weight: 700; max-width: 320px; }
+
+/* Two cards side by side (e.g. Owner | Receptionists) instead of stacked
+   full-width — makes better use of a wide page instead of everything being
+   one long single column. */
+.two-col-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 24px 0; }
+.two-col-cards .card { margin-top: 0; }
+@media (max-width: 700px) { .two-col-cards { grid-template-columns: 1fr; } }
+
+.tabs { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+.tab {
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard);
+}
+.tab:hover:not(.active) { color: var(--text); border-color: var(--text); }
+.tab.active { color: var(--accent); border-color: var(--accent); background: rgba(var(--accent-rgb), 0.08); font-weight: 600; }
+
+/* A .tabs row with a page action anchored to the far right — e.g.
+   Marketers/Revenue sub-nav + "Register a marketer". */
+.tabs-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+.tabs-row .tabs { margin-bottom: 0; }
+
+/* A single right-aligned action above a page section — e.g. Revenue.jsx's
+   "Hide/Show cards" toggle. */
+.section-toolbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+
+/* ---- modal ----
+   A plain centered popup. Backdrop click or Escape closes it (Modal.jsx); a
+   click inside the card doesn't. Backdrop fades in and (once fully open)
+   softly blurs whatever's behind it; the card itself scales up from 97% —
+   a "dialog popping in" feel, distinct from the page cards' upward slide
+   (.card's own card-in animation). Close reverses both, driven by
+   Modal.jsx's data-state attribute rather than an instant unmount, so the
+   frosted card actually animates away instead of vanishing. */
+@keyframes modal-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modal-backdrop-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes modal-card-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes modal-card-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.97); }
+}
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px) saturate(1.1);
+  -webkit-backdrop-filter: blur(4px) saturate(1.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 50;
+  animation: modal-backdrop-in var(--duration-base) var(--ease-out) both;
+}
+.modal-backdrop[data-state="closing"] {
+  animation: modal-backdrop-out var(--duration-base) var(--ease-standard) forwards;
+}
+.modal-card {
+  background: var(--surface);
+  border: 1px solid rgba(var(--border-rgb), 0.6);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  /* Clips .modal-card__scroll to this rounded shape, so a long popup's
+     native scrollbar curves away from the top/bottom-right corners
+     instead of cutting a flat rectangle through them — the actual
+     scrolling + padding lives one level in, on .modal-card__scroll. */
+  overflow: hidden;
+  /* Not "... both" — same fixed-position-containing-block reasoning as
+     .card's own card-in animation (this keyframe also ends on a non-none
+     transform: scale(1)). Nothing inside a modal is position:fixed today,
+     but there's no reason to leave the footgun for whoever adds one. The
+     *closing* animation below is a different case (see its own note). */
+  animation: modal-card-in var(--duration-base) var(--ease-out);
+}
+.modal-card__scroll {
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 32px;
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .modal-card {
+    background: rgba(var(--surface-rgb), var(--glass-alpha-strong));
+    backdrop-filter: var(--glass-blur-strong);
+    -webkit-backdrop-filter: var(--glass-blur-strong);
+  }
+}
+/* `forwards` IS safe here despite the note above: that constraint exists
+   because a lingering transform on a PERMANENTLY-MOUNTED element becomes a
+   containing block for any position:fixed descendant added at any later
+   point in its lifetime. This element is removed from the DOM within one
+   animation's length of `forwards` taking effect (Modal.jsx's
+   onAnimationEnd handler unmounts it) — there's no future point where a
+   fixed-position child could ever be appended to an already-unmounted node.
+   Skipping `forwards` here would be worse: the element would snap back to
+   full opacity/scale(1) for a stray frame right as the animation ends. */
+.modal-card[data-state="closing"] {
+  animation: modal-card-out var(--duration-base) var(--ease-standard) forwards;
+  pointer-events: none;
+}
+.modal-card__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
+.modal-card__head h2 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+.modal-card__close {
+  font: inherit;
+  font-size: 22px;
+  line-height: 1;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-full);
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 9px;
+  transition: color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard);
+}
+.modal-card__close:hover { color: var(--text); background: rgba(var(--tint-rgb), 0.08); }
+/* A .card dropped inside a modal already sits on the modal's own bordered,
+   shadowed surface — giving it a second border/shadow reads as a box nested
+   inside a box. Flatten it to a plain section, and where more than one is
+   stacked (e.g. affiliate Settings' payout + password), separate them with
+   a divider instead of a second card outline. */
+.modal-card .card { border: none; box-shadow: none; background: transparent; padding: 0; }
+.modal-card .card + .card { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border); }
+
+.locked {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+}
+/* Decision-critical (license lockout) — kept fully opaque, no glass. */
+.locked__card {
+  position: relative;
+  z-index: 1;
+  max-width: 420px;
+  background: var(--surface);
+  border: 1px solid rgba(var(--bad-rgb), 0.35);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 36px 30px;
+}
+.locked__card h2 { color: var(--bad); margin-bottom: 10px; }
+
+/* Click-to-copy phone numbers (PhoneNumber.jsx) — no underline; the cursor
+   and hover color shift are the only "this is clickable" cues. */
+.phone-copy { cursor: pointer; transition: color var(--duration-fast) var(--ease-standard); }
+.phone-copy:hover { color: var(--text); }
+
+.section-title { margin: 28px 0 14px; font-size: 17px; font-weight: 700; letter-spacing: -0.005em; }
+.checkbox-row { display: flex; gap: 8px; align-items: center; margin: 8px 0; font-size: 14px; }
+.field--wide { grid-column: 1 / -1; }
+.section-top { margin-top: 22px; }
+
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 26px; }
+.detail-grid h4 { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+.detail-grid .field { margin-bottom: 10px; }
+/* Membership/equipment status cells (MemberProfile) — wider, more breathing
+   room than a plain detail field, since these carry the page's most
+   decision-critical info (active/expired, renew action). */
+.detail-grid--status { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 32px; }
+.detail-grid--status h4 { font-size: 14px; margin-bottom: 12px; }
+
+/* Status text (license status: active / grace / expired / locked) */
+.status-text { font-weight: 600; }
+.status-text--active { color: var(--ok); }
+.status-text--grace { color: var(--pending); }
+.status-text--expired, .status-text--locked { color: var(--bad); }
+
+.username-combo { display: flex; align-items: stretch; min-width: 0; }
+.username-combo__prefix {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-right: none;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+.username-combo input {
+  /* No longer needs !important — this used to be fighting the base input
+     rule's accidentally-inflated specificity (see that rule's own comment
+     for the real fix); against .field input specifically it already won
+     on plain source order (this rule comes later), which is correct and
+     intentional, not a bug. */
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---- marketing website ----
+   The public site (src/features/website/*, src/components/website/*) —
+   Home/Product/Pricing/Contact, built from a Stitch export the user
+   dropped in. Only the CONTENT STRUCTURE and marketing-specific layout
+   patterns (hero, feature grid, pricing cards, split sections) came from
+   Stitch — every visual value below is a GymOS token already defined at
+   the top of this file (--accent, --radius-*, --shadow-*, --border, the
+   same green wordmark treatment every dashboard topbar uses), not Stitch's
+   own blue/Tailwind palette.
+
+   Distinct "site-" prefix and its own components rather than reusing
+   .card/.stat-card/.page directly (layout needs genuinely differ — a
+   3-column pricing/feature grid, a hero split, a sticky nav header — none
+   of which .card's single-column dashboard layout has to solve), but the
+   CARD IDENTITY itself is deliberately the same one the app uses for a row
+   of same-shaped cards — .stat-card's border-left + border-radius
+   "bracket" (radius on a single bordered side curves that one line instead
+   of reading as a flat rule), applied to every card including the first,
+   no outer box around the row (see .site-feature-grid/.site-pricing-grid).
+   A standalone card with no row of peers (.site-contact-card) instead
+   matches plain .card: no border at all, just an "incomplete line" —
+   a border-bottom under the heading — standing in for the box, exactly
+   like .card h2's own underline. Where the marketing site shows the real
+   product UI (Product page's verdict demo), it reuses the real
+   .verdict/.stat-card/.pill/.table classes verbatim; the homepage hero's
+   screenshot is a real captured image
+   (public/dashboard-screenshot.png), not a fabricated mockup. */
+
+/* No --accent override here any more. This block briefly carried one
+   (#16A34A, the logo's green, while the app itself was still on #619D25) —
+   that split was the whole problem: the site and the product showed two
+   different greens. --accent is now #16A34A globally, at the top of this
+   file, so the site inherits it like everything else. */
+.site {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.site-main { flex: 1; width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 28px; }
+
+/* -- header -- */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(var(--bg-rgb), 0.85);
+  border-bottom: 1px solid var(--border);
+}
+@supports (backdrop-filter: blur(1px)) {
+  .site-header { backdrop-filter: var(--glass-blur-medium); }
+}
+.site-header__inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 16px 28px;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+/* 27px against the header's 32px mark — the wordmark reads as the mark's
+   equal rather than a caption beside it (it was 18px, roughly half the
+   logo's height, which is what made the name look undersized). Cap height,
+   not font size, is what the eye matches: at 27px the capital G in "Gym"
+   lands just under the mark's full height, which is the balance wanted.
+   The footer no longer uses this class at all — it is a plain text line
+   now (.site-footer__wordmark), so this is header-only. */
+.site-header__brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-size: 27px; }
+/* Name stacked over tagline, mirroring LoginPage.jsx's lockup. Tight
+   line-heights and a 1px gap keep the two-line block close to the 32px
+   mark's own height, so adding the tagline doesn't visibly grow the
+   sticky header. The tagline sets its own font-size because .site-header__
+   brand's 27px is inherited by everything inside it. */
+.site-header__brand-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  line-height: 1.05;
+}
+.site-header__tagline {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.site-header__tagline-accent { color: var(--accent); }
+.site-nav { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.site-nav__link {
+  padding: 8px 14px;
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+}
+.site-nav__link:hover { background: rgba(var(--tint-rgb), 0.06); color: var(--text); }
+.site-nav__link.active { color: var(--accent-ink); background: var(--accent); }
+.site-header__actions { display: flex; align-items: center; gap: 12px; }
+.site-header__burger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  cursor: pointer;
+}
+.site-header__burger span { display: block; width: 16px; height: 2px; margin: 0 auto; background: var(--text); border-radius: 1px; }
+
+@media (max-width: 760px) {
+  .site-header__inner { gap: 12px; flex-wrap: wrap; }
+  /* The brand is wider now that the tagline sits under the name, and below
+     this breakpoint it shares its row with the theme toggle and burger.
+     Trimming the wordmark keeps the whole lockup on one line on a phone —
+     the tagline is `white-space: nowrap`, so it must not be the thing that
+     forces a wrap. */
+  .site-header__brand { font-size: 21px; }
+  .site-header__tagline { font-size: 10px; }
+  .site-nav {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    max-height: 0;
+    overflow: hidden;
+  }
+  .site-nav--open { max-height: 240px; margin-top: 8px; }
+  .site-nav__link { padding: 10px 12px; }
+  .site-header__actions .btn--primary { display: none; }
+  .site-header__burger { display: flex; }
+}
+
+/* -- hero -- */
+.site-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: center;
+  padding: 72px 0 56px;
+}
+.site-hero--narrow { grid-template-columns: 1fr; text-align: center; justify-items: center; padding-bottom: 40px; }
+.site-hero--narrow .site-hero__actions { justify-content: center; }
+.site-hero__copy { display: flex; flex-direction: column; align-items: flex-start; gap: 18px; max-width: 560px; }
+.site-hero--narrow .site-hero__copy { align-items: center; max-width: 640px; }
+.site-eyebrow {
+  display: inline-block;
+  padding: 5px 14px;
+  border-radius: var(--radius-full);
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.site-hero__title { font-size: 44px; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; }
+.site-hero__title-accent { color: var(--accent); }
+.site-hero__sub { font-size: 16px; color: var(--text-secondary); line-height: 1.6; }
+.site-hero__actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.site-hero__visual { display: flex; justify-content: center; }
+
+@media (max-width: 860px) {
+  .site-hero { grid-template-columns: 1fr; text-align: center; justify-items: center; padding-top: 40px; }
+  .site-hero__copy { align-items: center; }
+  .site-hero__actions { justify-content: center; }
+  .site-hero__title { font-size: 34px; }
+}
+
+/* -- dashboard preview (hero visual) --
+   A browser-chrome frame around a real screenshot (public/dashboard-
+   screenshot.png, dropped in manually — see MarketingHome.jsx) rather than
+   a fabricated mockup of the UI. */
+.site-preview {
+  width: 100%;
+  max-width: 460px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+.site-preview__bar { display: flex; gap: 6px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.site-preview__dot { width: 9px; height: 9px; border-radius: var(--radius-full); background: rgba(var(--tint-rgb), 0.2); }
+.site-preview__image { display: block; width: 100%; height: auto; }
+/* Shown instead of the <img> when the screenshot hasn't been dropped into
+   public/ yet — a broken-image icon would look like the site is buggy, not
+   just unfinished. */
+.site-preview__placeholder {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.site-preview__placeholder code {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: rgba(var(--tint-rgb), 0.08);
+  font-size: 12px;
+}
+
+/* -- section / feature grid --
+   Same identity the app's own .stat-card uses (src/features/admin/
+   GymDetailPage.jsx's 3-up attendance/members/staff row, etc.): a single
+   border-left PLUS a full border-radius on every item, including the
+   first one — no first-child exception (see .stat-card's own comment for
+   why: "so the line reads consistently across the whole row instead of
+   appearing to skip one"). Radius on only one bordered side is what makes
+   that line curve into a soft bracket instead of reading as a flat rule —
+   that's the "incomplete line" here, not a heading underline. No outer
+   box around the row and no per-card background — same "no boxed
+   container" identity as .card everywhere else in the app. */
+.site-section { padding: 48px 0; }
+.site-section__title { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; text-align: center; margin-bottom: 32px; }
+.site-feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; }
+.site-feature-grid--2 { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 860px) {
+  .site-feature-grid, .site-feature-grid--2 { grid-template-columns: 1fr; }
+  .site-feature-card { border-left: none; border-top: 1px solid var(--border); border-radius: var(--radius-lg); }
+}
+.site-feature-card {
+  padding: 26px;
+  border-left: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.site-feature-card__icon {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent);
+  margin-bottom: 14px;
+}
+.site-feature-card h3 { font-size: 16px; font-weight: 700; padding-bottom: 12px; margin-bottom: 10px; border-bottom: 1px solid var(--border); letter-spacing: -0.005em; }
+.site-feature-card p { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+
+/* -- split section (Product page's verdict-system block) -- */
+.site-split { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
+@media (max-width: 860px) { .site-split { grid-template-columns: 1fr; } }
+.site-split__copy h2 { font-size: 24px; font-weight: 700; margin: 14px 0 10px; letter-spacing: -0.01em; }
+.site-split__copy p { color: var(--text-secondary); line-height: 1.6; }
+.site-split__visual { display: flex; flex-direction: column; gap: 14px; }
+.site-verdict-demo { max-width: 340px; }
+
+.site-checklist { list-style: none; margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+.site-checklist li { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; color: var(--text-secondary); }
+.site-checklist svg { flex-shrink: 0; color: var(--accent); margin-top: 1px; }
+.site-note { text-align: center; color: var(--muted); font-size: 13px; margin-top: 24px; max-width: 640px; margin-left: auto; margin-right: auto; }
+
+/* -- tagline statement -- a standalone declaration, not a badge; see
+   MarketingHome.jsx's own comment on why this replaced a small eyebrow
+   pill above the hero. */
+.site-statement { padding: 8px 0 40px; text-align: center; }
+.site-statement__text {
+  margin: 0 auto;
+  max-width: 720px;
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.site-statement__accent { color: var(--accent); }
+@media (max-width: 640px) {
+  .site-statement__text { font-size: 30px; }
+}
+
+/* -- final CTA band -- */
+.site-cta {
+  text-align: center;
+  padding: 56px 32px;
+  margin: 24px 0 56px;
+  border-radius: var(--radius-xl);
+  background: rgba(var(--accent-rgb), 0.08);
+  border: 1px solid rgba(var(--accent-rgb), 0.25);
+}
+.site-cta h2 { font-size: 26px; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.01em; }
+.site-cta p { color: var(--text-secondary); margin-bottom: 22px; }
+
+/* -- pricing --
+   Same .stat-card bracket identity as .site-feature-grid above — a
+   border-left plus a full border-radius on every card, including the
+   first, no outer box around the row. The featured tier is called out
+   with an accent-coloured heading underline (the "incomplete line" again,
+   just coloured) plus a soft tint, never a border or shadow of its own —
+   a card never gets its own box back, even for emphasis. */
+.site-pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); align-items: stretch; }
+@media (max-width: 900px) { .site-pricing-grid { grid-template-columns: 1fr; } }
+.site-pricing-card {
+  position: relative;
+  padding: 30px 26px;
+  border-left: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+}
+@media (max-width: 900px) {
+  .site-pricing-card { border-left: none; border-top: 1px solid var(--border); }
+}
+.site-pricing-card--featured { background: rgba(var(--accent-rgb), 0.04); }
+.site-pricing-card--featured .site-pricing-card__name { border-bottom-color: var(--accent); }
+.site-pricing-card__badge {
+  display: inline-block;
+  align-self: flex-start;
+  margin-bottom: 14px;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.site-pricing-card__name { font-size: 18px; font-weight: 700; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+.site-pricing-card__blurb { color: var(--text-secondary); font-size: 13.5px; margin-top: 10px; min-height: 40px; }
+.site-pricing-card__price { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; margin: 18px 0 20px; }
+.site-pricing-card__price span { font-size: 14px; font-weight: 500; color: var(--muted); }
+.site-pricing-card__cta { width: 100%; text-align: center; }
+.site-pricing-card__intro { font-size: 12.5px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin: 24px 0 4px; }
+.site-pricing-card .site-checklist { margin-top: 12px; }
+
+/* Placeholder shown while tiers are loading (or the super admin hasn't
+   configured any yet, e.g. right after launch) — see Pricing.jsx. Same
+   pulse used nowhere else in the app yet; scoped to this one component. */
+@keyframes site-pricing-pulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+.site-pricing-card--skeleton { gap: 12px; }
+.site-pricing-skeleton-bar {
+  height: 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(var(--tint-rgb), 0.09);
+  animation: site-pricing-pulse 1.5s var(--ease-standard) infinite;
+}
+.site-pricing-skeleton-bar--name { width: 45%; height: 16px; margin-bottom: 8px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+.site-pricing-skeleton-bar--price { width: 65%; height: 28px; margin: 6px 0 8px; }
+.site-pricing-skeleton-bar--line { width: 90%; }
+
+/* -- contact -- */
+.site-contact-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 32px; align-items: start; }
+@media (max-width: 860px) { .site-contact-grid { grid-template-columns: 1fr; } }
+.site-contact-form { display: flex; flex-direction: column; }
+.site-contact-form textarea {
+  font: inherit;
+  padding: 11px 13px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  resize: vertical;
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+.site-contact-form textarea:focus { border-color: var(--accent); }
+.site-contact-form .btn { margin-top: 8px; align-self: flex-start; }
+/* No box here either — same "heading underline stands in for it" treatment
+   as .card h2, since this is really just a second content section next to
+   the form, not a tile that needs its own boundary. */
+.site-contact-card { padding-top: 4px; }
+.site-contact-card h3 { font-size: 17px; font-weight: 700; padding-bottom: 14px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
+.site-contact-card p { color: var(--text-secondary); font-size: 14px; line-height: 1.6; margin-bottom: 18px; }
+
+/* -- footer -- */
+.site-footer { border-top: 1px solid var(--border); margin-top: 24px; }
+.site-footer__inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 28px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+/* One centred line of plain text — no mark, no nav (the header carries
+   both). "Gym" and "by Nobody Brothers" sit in --muted with only the OS in
+   --accent, which is what keeps it reading as a quiet sign-off rather than
+   a second logo competing with the header's. Same size and colour as
+   .login__footer so the marketing site and the app sign off identically. */
+.site-footer__wordmark {
+  display: block;
+  width: 100%;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: var(--font-weight-heading);
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+.site-footer__wordmark:hover { color: var(--text); }
+
+/* ---- trend charts ---- */
+
+.trend-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 36px; margin-bottom: 24px; }
+.trend-chart {
+  position: relative;
+  /* Not "... both" — see the note on .card's own card-in animation. */
+  animation: card-in 0.28s var(--ease-out);
+}
+.trend-chart h2 { font-size: 15px; margin-bottom: 14px; color: var(--text); font-weight: 700; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.trend-chart__plot { display: flex; gap: 10px; }
+/* Value scale down the left edge (max/half/zero) — matches the day labels
+   already running along the bottom, so both axes read at a glance. */
+.trend-chart__yaxis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 140px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+  padding: 2px 0;
+}
+.trend-chart__graph-col { flex: 1; min-width: 0; }
+.trend-chart__graph { position: relative; }
+.trend-chart__svg { width: 100%; height: 140px; display: block; }
+.trend-chart__line { transition: opacity var(--duration-fast) var(--ease-standard); }
+.trend-chart__dot { transition: r var(--duration-fast) var(--ease-standard); cursor: pointer; }
+.trend-chart__baseline { stroke: var(--border); stroke-width: 1; }
+.trend-chart__labels { display: flex; margin-top: 6px; }
+.trend-chart__label {
+  flex: 1;
+  text-align: center;
+  color: var(--muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.trend-chart__tooltip {
+  position: absolute;
+  bottom: 100%;
+  margin-bottom: 8px;
+  transform: translateX(-50%);
+  background: var(--text);
+  color: var(--bg);
+  border: 1px solid var(--text);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 12px;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: var(--shadow-md);
+  z-index: 5;
+}
+.trend-chart__empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+/* ---- mobile ----
+   The desktop layout (sidebar shell + centered .page column) holds up fine
+   down to tablet width via the component-local breakpoints above (.row2,
+   .status-blocks, .two-col-cards) and the shell's own mobile rules above.
+   Below ~700px those aren't enough on their own — wide tables need their
+   own handling so nothing overflows the viewport or gets squeezed
+   unreadable. */
+@media (max-width: 700px) {
+  .page { padding: 24px 16px; }
+
+  /* Tables scroll horizontally instead of squeezing columns unreadable —
+     display:block on the table itself turns it into a scrollable box while
+     thead/tbody/tr/td keep their normal table layout (so columns still
+     line up), it just no longer has to fit the viewport width. */
+  .table { display: block; overflow-x: auto; white-space: nowrap; }
+
+  /* A row of stat cards that never wraps on desktop (Dashboard's 6, the
+     affiliate's 3) would otherwise squeeze every card down to a sliver.
+     The hairline divider-per-cell only reads correctly side by side — at
+     phone width it becomes a plain stacked list instead: full-width rows,
+     label and value on one line, a hairline under each (no boxes, staying
+     flat like the rest of the redesign). */
+  .stat-grid, .stat-grid--row { flex-direction: column; flex-wrap: nowrap; gap: 0; padding-bottom: 0; }
+  .stat-card, .stat-grid--row .stat-card {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-left: none;
+    border-bottom: 1px solid var(--border);
+    padding: 14px 4px;
+  }
+  .stat-card:last-child, .stat-grid--row .stat-card:last-child { border-bottom: none; }
+  .stat-card__label { margin-bottom: 0; }
+
+  /* Smaller chrome everywhere a card/popup's own padding and headings eat
+     into the little width a phone screen has to give. Input font-size is
+     left alone — dropping it below 16px makes iOS Safari zoom in on focus. */
+  .modal-card__scroll { padding: 16px; }
+  .card { padding: 18px; }
+  .page h1 { font-size: 21px; }
+  .card h2, .modal-card__head h2 { font-size: 15px; }
+  .field input, .field select { padding: 9px 11px; }
+  .username-combo__prefix { padding: 0 8px; }
+  .row2, .row2--even { gap: 10px; }
+  .detail-grid { gap: 18px; }
+}

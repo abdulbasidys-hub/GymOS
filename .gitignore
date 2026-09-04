@@ -1,0 +1,52 @@
+# dependencies
+node_modules
+
+# build output
+dist
+dist-ssr
+
+# env — secrets & config, never commit (values live in Vercel)
+.env
+.env.*.local
+
+# Firebase Admin SDK service-account keys — full bypass-the-rules access,
+# never commit. Catches this project's key regardless of exact filename.
+service account.json
+service-account*.json
+serviceAccount*.json
+*firebase-adminsdk*.json
+
+# electron-builder's packaged installer/output. ARTIFACTS only — the
+# desktop app's SOURCE is deliberately tracked: electron/ (main.cjs,
+# preload.cjs, local-db/), build/ (icon.ico, installer.nsh, the installer
+# sidebars) and scripts/ (the generators for those assets). Vercel never
+# looks at any of it, so it costs nothing to deploy, and keeping it in the
+# repo is what makes the desktop build reproducible on another machine
+# instead of existing only on one laptop.
+release
+# electron-builder's staging dir. Windows Defender can hold a lock on this
+# mid-extraction and leave it behind after a failed build (see BUILD.md
+# §19) — never commit a half-extracted Electron runtime.
+release/win-unpacked.tmp
+
+# Local build scratch — the alternate output dir used when release/ is
+# locked.
+/gymos-release
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Claude Code's local tool-permission state — machine-specific absolute
+# paths and scratch-file allowances, useful to nobody else and not part of
+# the app.
+.claude/
+
+# editor / os
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.local

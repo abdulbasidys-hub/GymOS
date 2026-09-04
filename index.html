@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Same black/white inversion the in-app <Logo> does, for the browser
+         tab. This one can only follow the OS/browser theme, not the app's
+         own light/dark toggle: a favicon is chosen by the browser from
+         these media queries before any of our JS runs, so forcing dark
+         inside the app while the OS is light leaves the tab on the light
+         mark. Acceptable — the tab strip is drawn in the OS/browser theme
+         anyway, so matching that is the correct target here. -->
+    <link rel="icon" type="image/png" href="/favicon.png" media="(prefers-color-scheme: light)" />
+    <link rel="icon" type="image/png" href="/favicon-dark.png" media="(prefers-color-scheme: dark)" />
+    <!-- Fallback for browsers that ignore media on <link rel=icon>. -->
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GymOS</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

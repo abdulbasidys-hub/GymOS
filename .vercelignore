@@ -1,0 +1,58 @@
+# What NOT to upload to Vercel.
+#
+# IMPORTANT — this file REPLACES .gitignore for upload filtering. Vercel
+# falls back to .gitignore only when no .vercelignore exists, so everything
+# .gitignore was doing for deploys has to be repeated here. That is why
+# node_modules, dist and .env appear below even though .gitignore already
+# lists them: leaving them out would start uploading them.
+#
+# .env is the one that actually matters. A `vercel` CLI deploy uploads the
+# working directory as-is, so an unignored .env would be shipped to the
+# build and Vite would read it INSTEAD OF the values set in Project
+# Settings → Environment Variables — silently deploying whatever this
+# laptop happens to have configured. (Git-based deploys are safe either
+# way, since the repo never contains .env.)
+#
+# Note this does not change the built OUTPUT. Nothing here ever reached
+# dist/: the renderer talks to the desktop layer through window.gymOS,
+# which preload injects at runtime, so no file under src/ imports anything
+# from electron/. This is about upload size and deploy time, not about
+# stopping desktop code from leaking into the web bundle — that was never
+# happening.
+
+# --- must repeat from .gitignore (see above) ---
+node_modules
+dist
+dist-ssr
+.env
+.env.*.local
+
+# --- desktop app: source is kept in git for versioning, but Vercel has no
+#     use for any of it (npm run build only reads src/, public/,
+#     index.html, vite.config.js) ---
+electron
+build
+release
+
+# --- one-off operational scripts: seeding plans, the multi-branch
+#     migration, and the logo/installer-art generators. Run by hand, never
+#     part of a build. ---
+scripts
+
+# --- Firebase project config: deployed with firebase-tools, not Vercel ---
+firebase.json
+.firebaserc
+firestore.rules
+firestore.indexes.json
+storage.rules
+
+# --- docs and local tooling state ---
+BUILD.md
+.claude
+.vscode
+.idea
+
+# --- logs / os cruft ---
+*.log
+npm-debug.log*
+.DS_Store

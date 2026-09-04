@@ -1,0 +1,203 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function myRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '');
+    }
+    function myGymIds() {
+      let u = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return u.get('gym_ids', [u.get('gym_id', '')]);
+    }
+    function isSuperAdmin() {
+      return isSignedIn() && myRole() == 'superadmin';
+    }
+    function isOwner() {
+      return isSignedIn() && myRole() == 'owner';
+    }
+    function isReceptionist() {
+      return isSignedIn() && myRole() == 'receptionist';
+    }
+    function isAffiliate() {
+      return isSignedIn() && myRole() == 'affiliate';
+    }
+    function inMyGym(gymId) {
+      return isSignedIn() && gymId in myGymIds();
+    }
+    function selfActor() {
+      return request.resource.data.actor_uid == request.auth.uid;
+    }
+    function gymIsOperational(gymId) {
+      let g = get(/databases/$(database)/documents/gyms/$(gymId)).data;
+      return g.get('status', '') == 'active' && g.get(['subscription', 'locked'], false) != true;
+    }
+    function unchangedRoleAndGym() {
+      return request.resource.data.get('role', '') == resource.data.get('role', '') &&
+             request.resource.data.get('gym_id', '') == resource.data.get('gym_id', '');
+    }
+    function gymAffiliateId(gymId) {
+      return get(/databases/$(database)/documents/gyms/$(gymId)).data.get('affiliate_id', '');
+    }
+
+    match /users/{uid} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == uid ||
+        isSuperAdmin() ||
+        (isOwner() && resource.data.get('gym_id', '') in myGymIds()) ||
+        (isAffiliate() && resource.data.get('role', '') == 'owner' &&
+         gymAffiliateId(resource.data.get('gym_id', '')) == request.auth.uid)
+      );
+      allow create: if isSuperAdmin() ||
+        (isOwner() && request.resource.data.get('role', '') == 'receptionist' &&
+         request.resource.data.get('gym_id', '') in myGymIds());
+      allow update: if isSuperAdmin() ||
+        (isOwner() && resource.data.get('role', '') == 'receptionist' &&
+         resource.data.get('gym_id', '') in myGymIds() && unchangedRoleAndGym()) ||
+        (request.auth.uid == uid &&
+         resource.data.must_change_password == true &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['must_change_password']) &&
+         request.resource.data.must_change_password == false) ||
+        (request.auth.uid == uid && isAffiliate() &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bank_name', 'account_number']));
+      allow delete: if isSuperAdmin();
+    }
+
+    match /gyms/{gymId} {
+      allow read: if isSuperAdmin() || inMyGym(gymId) ||
+        (isAffiliate() && resource.data.affiliate_id == request.auth.uid);
+      allow create: if isSuperAdmin();
+      allow update: if isSuperAdmin() ||
+        (isReceptionist() && inMyGym(gymId) && gymIsOperational(gymId) &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['member_seq']) &&
+         request.resource.data.member_seq == resource.data.member_seq + 1);
+      allow delete: if isSuperAdmin();
+    }
+
+    match /platform_plans/{id} {
+      allow read: if true;
+      allow create, update: if isSuperAdmin();
+    }
+
+    match /platform_settings/{id} {
+      allow read, create, update: if isSuperAdmin();
+    }
+
+    match /affiliate_earnings/{id} {
+      allow read: if isSuperAdmin() || (isAffiliate() && resource.data.affiliate_id == request.auth.uid);
+      allow create: if isSuperAdmin() && selfActor();
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /platform_payments/{id} {
+      allow read: if isSuperAdmin();
+      allow create: if isSuperAdmin() && selfActor();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /admin_activity_log/{id} {
+      allow read: if isSuperAdmin();
+      allow create: if isSuperAdmin() && selfActor();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /plans/{planId} {
+      allow read: if isSuperAdmin() ||
+        (inMyGym(resource.data.gym_id) && gymIsOperational(resource.data.gym_id));
+      allow create: if isOwner() && request.resource.data.gym_id in myGymIds() &&
+        gymIsOperational(request.resource.data.gym_id);
+      allow update: if isOwner() && resource.data.gym_id in myGymIds() &&
+        gymIsOperational(resource.data.gym_id) &&
+        request.resource.data.gym_id == resource.data.gym_id &&
+        request.resource.data.type == resource.data.type;
+      allow delete: if isSuperAdmin();
+    }
+
+    match /custom_fields/{fieldId} {
+      allow read: if isSuperAdmin() ||
+        (inMyGym(resource.data.gym_id) && gymIsOperational(resource.data.gym_id));
+      allow create: if isOwner() && request.resource.data.gym_id in myGymIds() &&
+        gymIsOperational(request.resource.data.gym_id);
+      allow update: if isOwner() && resource.data.gym_id in myGymIds() &&
+        gymIsOperational(resource.data.gym_id) &&
+        request.resource.data.gym_id == resource.data.gym_id;
+      allow delete: if (isOwner() && resource.data.gym_id in myGymIds() &&
+        gymIsOperational(resource.data.gym_id)) || isSuperAdmin();
+    }
+
+    match /members/{memberId} {
+      allow read: if isSuperAdmin() ||
+        (inMyGym(resource.data.gym_id) && gymIsOperational(resource.data.gym_id));
+      allow create: if isReceptionist() && request.resource.data.gym_id in myGymIds() &&
+        gymIsOperational(request.resource.data.gym_id);
+      allow update: if isReceptionist() && resource.data.gym_id in myGymIds() &&
+        gymIsOperational(resource.data.gym_id) &&
+        request.resource.data.gym_id == resource.data.gym_id &&
+        request.resource.data.member_no == resource.data.member_no &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name', 'phone', 'gender', 'dob', 'weight', 'height',
+          'emergency_name', 'emergency_phone', 'address', 'email', 'custom_fields',
+          'photo_url', 'updated_at'
+        ]);
+      allow delete: if isSuperAdmin();
+    }
+
+    match /membership_records/{id} {
+      allow read: if isSuperAdmin() ||
+        (inMyGym(resource.data.gym_id) && gymIsOperational(resource.data.gym_id));
+      allow create: if isReceptionist() && request.resource.data.gym_id in myGymIds() &&
+        gymIsOperational(request.resource.data.gym_id);
+      allow delete: if isSuperAdmin();
+    }
+
+    match /equipment_records/{id} {
+      allow read: if isSuperAdmin() ||
+        (inMyGym(resource.data.gym_id) && gymIsOperational(resource.data.gym_id));
+      allow create: if isReceptionist() && request.resource.data.gym_id in myGymIds() &&
+        gymIsOperational(request.resource.data.gym_id);
+      allow delete: if isSuperAdmin();
+    }
+
+    match /payments/{id} {
+      allow read: if isSuperAdmin() ||
+        (inMyGym(resource.data.gym_id) && gymIsOperational(resource.data.gym_id));
+      allow create: if isReceptionist() && request.resource.data.gym_id in myGymIds() &&
+        gymIsOperational(request.resource.data.gym_id);
+      allow delete: if isSuperAdmin();
+    }
+
+    match /attendance/{id} {
+      allow read: if isSuperAdmin() ||
+        (inMyGym(resource.data.gym_id) && gymIsOperational(resource.data.gym_id));
+      allow create: if isReceptionist() && request.resource.data.gym_id in myGymIds() &&
+        gymIsOperational(request.resource.data.gym_id);
+      allow delete: if isSuperAdmin();
+    }
+
+    match /adjustments/{id} {
+      allow read: if isSuperAdmin() ||
+        (inMyGym(resource.data.gym_id) && gymIsOperational(resource.data.gym_id));
+      allow create: if isReceptionist() && request.resource.data.gym_id in myGymIds() &&
+        gymIsOperational(request.resource.data.gym_id) && selfActor();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /activity_log/{id} {
+      allow read: if isSuperAdmin() ||
+        (isOwner() && inMyGym(resource.data.gym_id) && gymIsOperational(resource.data.gym_id)) ||
+        (isReceptionist() && inMyGym(resource.data.gym_id) &&
+         resource.data.actor_uid == request.auth.uid && gymIsOperational(resource.data.gym_id));
+      allow create: if isReceptionist() && request.resource.data.gym_id in myGymIds() &&
+        gymIsOperational(request.resource.data.gym_id);
+      allow delete: if isSuperAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
