@@ -58,6 +58,7 @@ function chunk(items, size) {
  *  those rows 'pending' for the next cycle rather than aborting every
  *  other table's push over one failure. */
 async function pushFactTable(table, rows) {
+  let failed = 0;
   for (const group of chunk(rows, BATCH_SIZE)) {
     try {
       const batch = writeBatch(db);
@@ -66,8 +67,10 @@ async function pushFactTable(table, rows) {
       await localInvoke("markSynced", { table, ids: group.map((r) => r.id) });
     } catch (err) {
       console.error(`Sync push failed for ${table} (will retry next cycle):`, err);
+      failed += group.length;
     }
   }
+  return failed;
 }
 
 /** Same idea as pushFactTable, but merge:true — these are edits to
@@ -75,6 +78,7 @@ async function pushFactTable(table, rows) {
  *  not fresh creates, so a full non-merge overwrite could silently wipe
  *  a field this local schema doesn't happen to track. */
 async function pushEntityTable(table, rows) {
+  let failed = 0;
   for (const group of chunk(rows, BATCH_SIZE)) {
     try {
       const batch = writeBatch(db);
@@ -83,8 +87,10 @@ async function pushEntityTable(table, rows) {
       await localInvoke("markSynced", { table, ids: group.map((r) => r.id) });
     } catch (err) {
       console.error(`Sync push failed for ${table} (will retry next cycle):`, err);
+      failed += group.length;
     }
   }
+  return failed;
 }
 
 /**
@@ -116,6 +122,7 @@ async function pushEntityTable(table, rows) {
  * authoritative cloud number.
  */
 async function pushMembers(gymId, members, gymPrefix) {
+  let failed = 0;
   for (const member of members) {
     try {
       const memberRef = doc(db, "members", member.id);
@@ -156,8 +163,10 @@ async function pushMembers(gymId, members, gymPrefix) {
       await localInvoke("applyMemberRenumber", { memberId: member.id, memberNo: assignedNo });
     } catch (err) {
       console.error("Sync push failed for a member (will retry next cycle):", err);
+      failed += 1;
     }
   }
+  return failed;
 }
 
 /** Tombstoned local deletes (currently only custom_fields — the one hard
@@ -168,46 +177,68 @@ async function pushMembers(gymId, members, gymPrefix) {
 async function pushDeletes(gymId) {
   const items = await localInvoke("getPendingDeletes", { gymId });
   const cleared = [];
+  let failed = 0;
   for (const item of items) {
     try {
       await deleteDoc(doc(db, item.table, item.id));
       cleared.push(item);
     } catch (err) {
       console.error(`Sync push: delete failed for ${item.table}/${item.id} (will retry next cycle):`, err);
+      failed += 1;
     }
   }
   if (cleared.length > 0) await localInvoke("clearPendingDeletes", { items: cleared });
+  return failed;
 }
 
 /**
- * Pushes everything locally-pending for `gymId` up to Firestore. Silently
- * logs and continues past per-record/per-chunk failures rather than
- * throwing — same "background convenience, never blocks the app" posture
- * as ensureBootstrapped (src/data/local/bootstrap.js). No-op outside
- * Electron.
+ * Pushes everything locally-pending for `gymId` up to Firestore.
+ *
+ * Continues past per-record/per-chunk failures rather than throwing — one
+ * rejected member must not stop a day of payments from reaching the cloud
+ * — but it COUNTS them and returns `{ failedCount }`. That return value is
+ * load-bearing: this used to swallow failures entirely, so a push that
+ * Firestore rejected outright (a rules denial, say) still let the cycle
+ * report "Synced successfully" while the record sat pending forever. A
+ * sync that says it worked when it didn't is worse than one that says it
+ * failed, because nobody goes looking. See auth.jsx's runSyncCycle.
+ *
+ * No-op outside Electron.
  */
 export async function pushPendingChanges(gymId) {
-  if (!window.gymOS?.isElectron || !gymId) return;
+  if (!window.gymOS?.isElectron || !gymId) return { failedCount: 0 };
 
+  let failedCount = 0;
   try {
     const factRows = await localInvoke("getPendingFactRows", { gymId });
     for (const [table, rows] of Object.entries(factRows)) {
-      if (rows?.length) await pushFactTable(table, rows);
+      if (rows?.length) failedCount += await pushFactTable(table, rows);
     }
 
     const entityRows = await localInvoke("getPendingEntityRows", { gymId });
     for (const table of ["plans", "custom_fields", "users"]) {
-      if (entityRows[table]?.length) await pushEntityTable(table, entityRows[table]);
+      if (entityRows[table]?.length) failedCount += await pushEntityTable(table, entityRows[table]);
     }
 
     if (entityRows.members?.length) {
       const gymSnap = await getDoc(doc(db, "gyms", gymId));
       const gymPrefix = gymSnap.exists() ? gymSnap.data().prefix : null;
-      if (gymPrefix) await pushMembers(gymId, entityRows.members, gymPrefix);
+      if (gymPrefix) {
+        failedCount += await pushMembers(gymId, entityRows.members, gymPrefix);
+      } else {
+        // No prefix means the gym doc couldn't be read (offline, or a rules
+        // denial). Members cannot be numbered without it, so they stay
+        // pending — count them, or the cycle would call this a success
+        // having pushed no members at all.
+        failedCount += entityRows.members.length;
+      }
     }
 
-    await pushDeletes(gymId);
+    failedCount += await pushDeletes(gymId);
   } catch (err) {
     console.error("Sync push cycle failed (will retry next cycle):", err);
+    failedCount += 1;
   }
+
+  return { failedCount };
 }

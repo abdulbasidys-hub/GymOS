@@ -3,7 +3,7 @@ import { useAuth } from "../../auth";
 import Logo from "../../components/Logo";
 import LockedScreen from "../../components/LockedScreen";
 import ThemeToggle from "../../components/ThemeToggle";
-import { IconDashboard, IconPeople, IconClipboard, IconChart, IconBadge, IconGear, IconLogout, IconSync, IconBuilding } from "../../components/NavIcons";
+import { IconDashboard, IconPeople, IconClipboard, IconChart, IconBadge, IconGear, IconDownload, IconLogout, IconSync, IconBuilding } from "../../components/NavIcons";
 import OwnerHome from "./OwnerHome";
 import Attendance from "./Attendance";
 import Finances from "./Finances";
@@ -14,6 +14,7 @@ import GymSettings from "./GymSettings";
 import MembersList from "./MembersList";
 import CrossBranchReport from "./CrossBranchReport";
 import MemberProfile from "../MemberProfile";
+import DownloadsPage from "../DownloadsPage";
 
 // Every nav entry is a direct link to one page — no dropdowns. ExpiringSoon
 // is still routed (reached by clicking through OwnerHome's dashboard cards,
@@ -27,6 +28,7 @@ const NAV = [
   { to: "/owner/attendance", label: "Attendance", Icon: IconClipboard },
   { to: "/owner/finances", label: "Finances", Icon: IconChart },
   { to: "/owner/staff", label: "Team", Icon: IconBadge },
+  { to: "/owner/downloads", label: "Downloads", Icon: IconDownload },
   { to: "/owner/settings", label: "Settings", Icon: IconGear },
 ];
 const BRANCHES_NAV = { to: "/owner/branches", label: "All branches", Icon: IconBuilding };
@@ -154,6 +156,7 @@ export default function OwnerDashboard() {
             <Route path="staff" element={<ManageStaff />} />
             <Route path="staff/:staffId" element={<StaffProfile />} />
             <Route path="branches" element={<CrossBranchReport />} />
+            <Route path="downloads" element={<DownloadsPage />} />
             <Route path="settings" element={<GymSettings />} />
             <Route path="member/:memberId" element={<MemberProfile />} />
           </Routes>

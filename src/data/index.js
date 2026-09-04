@@ -98,3 +98,11 @@ export {
 } from "./equipmentRecords";
 export { logActivity, listActivityByGym } from "./activityLog";
 export { logAdminActivity, listRecentAdminActivity } from "./adminActivityLog";
+export {
+  DOWNLOAD_KINDS,
+  listDownloads,
+  getDownload,
+  setDownloadLink,
+  uploadDownload,
+  removeDownload,
+} from "./downloads";

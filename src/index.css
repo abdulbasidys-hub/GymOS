@@ -1835,6 +1835,26 @@ select option { background: var(--surface); color: var(--text); }
 .site-checklist svg { flex-shrink: 0; color: var(--accent); margin-top: 1px; }
 .site-note { text-align: center; color: var(--muted); font-size: 13px; margin-top: 24px; max-width: 640px; margin-left: auto; margin-right: auto; }
 
+/* One downloadable item (DownloadsPage.jsx) — title/meta on the left, the
+   button held right. Rows after the first get a divider rather than a full
+   box, matching how .card groups its own contents elsewhere. Wraps to a
+   stacked layout on narrow screens so the button never squeezes the title
+   into a single character per line. */
+.download-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 18px 0;
+}
+.download-row + .download-row { border-top: 1px solid var(--border); }
+.download-row:first-child { padding-top: 0; }
+.download-row:last-child { padding-bottom: 0; }
+.download-row__text { flex: 1; min-width: 220px; }
+.download-row__text h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.download-row__text p { font-size: 13px; }
+
 /* Reassurance under the pricing cards (Pricing.jsx). Sized below
    .site-section__title's 26px so it reads as a footnote to the tiers
    rather than a new section competing with them, and given real top

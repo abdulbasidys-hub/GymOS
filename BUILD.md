@@ -2567,6 +2567,112 @@ local `npm run build` would never surface.
 
 ---
 
+## 22. Self-service downloads: installer + role guides (2026-09-04)
+
+So an owner who isn't sitting with the super admin can set themselves up:
+sign in through the browser, take the desktop installer and the guide for
+their role, done.
+
+**Data model** — a `downloads` collection with **fixed document ids**, not
+generated ones: `desktop_app`, `guide_owner`, `guide_reception`. There is
+exactly one current installer and one current guide per role, so replacing
+one should overwrite that single row rather than accumulate stale versions
+the download page would then have to sort through. `firestore.rules` gives
+read to any signed-in user and write to super admin only; `storage.rules`
+does the same for `downloads/{fileName}`.
+
+**Each entry is EITHER an upload OR a link, and that split is the point.**
+The guides are small PDFs and belong in Firebase Storage. The installer is
+**~120MB**, and Storage's free tier allows **1GB of egress per day** —
+about eight downloads before the project starts refusing them, or billing
+on Blaze. Given this project has already had one warning email from
+Firebase, serving the installer from Storage would be actively reckless. A
+GitHub Release hosts the same file free and unmetered, so the admin page
+offers a Link tab alongside Upload. The customer's download button is
+identical either way; only who pays for the bandwidth changes.
+
+`storage_path` is recorded only for uploaded entries. It is what lets
+`setDownloadLink` delete a previously-uploaded object when an entry is
+switched from upload to link — otherwise that file would be orphaned in
+Storage, referenced by nothing and paid for forever — and what tells
+`removeDownload` whether there is anything to clean up at all. Uploads use
+a fixed path per kind (`downloads/{id}`) so re-uploading overwrites rather
+than accumulates.
+
+**Who sees what** is declared once, in `DOWNLOAD_KINDS[].roles`, and both
+the customer page and the admin page read from it. Owners get the app plus
+the owner's guide (which covers the front desk too, so they can train
+their own staff); receptionists get the app plus the front-desk guide.
+`features/DownloadsPage.jsx` is one component shared by both roles rather
+than two near-identical pages — the only difference between them is which
+entries are listed, which that array already describes.
+
+**Files:** `src/data/downloads.js` (new) · `src/features/DownloadsPage.jsx`
+(new, owner + desk) · `src/features/admin/Downloads.jsx` (new, route
+`/admin/downloads`) · nav entries and routes in all three dashboards ·
+`IconDownload` in `NavIcons.jsx` · `.download-row` CSS · `downloads` rules
+in both rules files.
+
+**Two things worth knowing:**
+- The download button is a plain `<a href download>`, not a fetch-then-save.
+  A 120MB installer served from another host should stream straight to disk
+  rather than being pulled through the page's memory first. `download` is
+  only a hint cross-origin, which is fine — the worst case is the browser
+  navigating to the file, which still downloads it.
+- This page appears in the Electron nav too, where it is the one screen with
+  no offline story by design (it reads Firestore directly and the files are
+  remote). It says so explicitly — "Downloads need an internet connection"
+  — rather than showing a bare "couldn't load" that would read as a bug in
+  an app whose whole selling point is working offline.
+
+**Still needed:** deploy both rules files (the `downloads` rules are new),
+then publish the three entries from `/admin/downloads`.
+
+**`webOnly`** hides the installer entry inside the desktop app itself —
+offering "download the desktop app" to someone already running it is noise,
+since the installer exists to set up a NEW machine, which happens in a
+browser. The guides carry no such flag: equally useful at the desk.
+
+---
+
+## 23. Sync reported success while records were rejected (2026-09-04)
+
+A member created offline showed "Synced successfully" but never appeared on
+another device. The record was not lost — it was still on the laptop,
+correctly marked `pending` — but the sync had told the user it was done.
+
+**Two separate faults, and the reporting one is the more dangerous.**
+
+`pushPendingChanges` catches per-record and per-chunk failures, logs them to
+console, and continues. That part is deliberate and correct: one rejected
+member must not strand a day's payments. But it returned nothing, so
+`runSyncCycle` had no way to know anything had failed, kept `ok = true`, and
+`syncNow` reported success. **A sync that says it worked when it didn't is
+worse than one that says it failed, because nobody goes looking.**
+
+Fixed by making failure a return value rather than a console side effect:
+each push helper counts its failures, `pushPendingChanges` returns
+`{ failedCount }`, and `runSyncCycle` sets `ok = false` when it is non-zero.
+The manual toast now says "Some records didn't sync — still saved here, will
+retry" rather than a flat "sync failed", because the distinction matters to
+whoever is at the desk: the record is safe locally, but it is NOT on the
+server and nobody else can see it yet.
+
+Also counted: the case where the gym doc can't be read, so `gymPrefix` is
+null and `pushMembers` is skipped entirely. That silently pushed zero
+members while reporting success.
+
+**The underlying rejection** was almost certainly §20's `gymIsOperational`
+rules bug, still undeployed at the time. `members` create requires
+`gymIsOperational(...)`, which errored on any gym whose `subscription` map
+had no `locked` key — so the create was denied, and the create transaction's
+`gyms.member_seq` update with it. Deploying the fixed rules lets the already-
+installed app push the pending record on its next cycle; no rebuild is needed
+for that, since the fix is server-side. The reporting fix does need a rebuild
+to reach an installed desktop app.
+
+---
+
 Historical checkpoints from before most of this was built (kept for
 reference — largely superseded by the above once there's a live gym to test
 against for real):

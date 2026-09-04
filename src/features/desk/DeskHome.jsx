@@ -6,12 +6,13 @@ import LockedScreen from "../../components/LockedScreen";
 import Modal from "../../components/Modal";
 import ChangePasswordForm from "../../components/ChangePasswordForm";
 import ThemeToggle from "../../components/ThemeToggle";
-import { IconCheckCircle, IconPeople, IconChart, IconPlus, IconLogout, IconSync } from "../../components/NavIcons";
+import { IconCheckCircle, IconPeople, IconChart, IconPlus, IconDownload, IconLogout, IconSync } from "../../components/NavIcons";
 import CheckIn from "./CheckIn";
 import DeskMembers from "./DeskMembers";
 import DeskFinances from "./DeskFinances";
 import RegisterMember from "./RegisterMember";
 import MemberProfile from "../MemberProfile";
+import DownloadsPage from "../DownloadsPage";
 
 function GearIcon() {
   return (
@@ -26,6 +27,7 @@ const NAV = [
   { to: "/desk", end: true, label: "Check-in", Icon: IconCheckCircle },
   { to: "/desk/members", label: "Members", Icon: IconPeople },
   { to: "/desk/finances", label: "Finances", Icon: IconChart },
+  { to: "/desk/downloads", label: "Downloads", Icon: IconDownload },
 ];
 
 // Milestone 3 (BUILD.md §15) — the sync icon-button's title/aria-label.
@@ -136,6 +138,7 @@ export default function DeskHome() {
             <Route index element={<CheckIn />} />
             <Route path="members" element={<DeskMembers />} />
             <Route path="finances" element={<DeskFinances />} />
+            <Route path="downloads" element={<DownloadsPage />} />
             <Route path="register" element={<RegisterMember />} />
             <Route path="member/:memberId" element={<MemberProfile />} />
           </Routes>

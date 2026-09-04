@@ -2,7 +2,7 @@ import { Routes, Route, NavLink } from "react-router-dom";
 import { useAuth } from "../../auth";
 import Logo from "../../components/Logo";
 import ThemeToggle from "../../components/ThemeToggle";
-import { IconDashboard, IconBuilding, IconCard, IconChart, IconMegaphone, IconSync, IconGear, IconLogout } from "../../components/NavIcons";
+import { IconDashboard, IconBuilding, IconCard, IconChart, IconMegaphone, IconSync, IconGear, IconDownload, IconLogout } from "../../components/NavIcons";
 import Dashboard from "./Dashboard";
 import GymsList from "./GymsList";
 import GymDetailPage from "./GymDetailPage";
@@ -11,6 +11,7 @@ import Subscriptions from "./Subscriptions";
 import Revenue from "./Revenue";
 import SyncMonitor from "./SyncMonitor";
 import Settings from "./Settings";
+import Downloads from "./Downloads";
 import AttentionPage from "./AttentionPage";
 import MarketersList from "./MarketersList";
 import MarketersRevenue from "./MarketersRevenue";
@@ -23,6 +24,7 @@ const NAV = [
   { to: "/admin/revenue", label: "Revenue", Icon: IconChart },
   { to: "/admin/marketers", label: "Marketers", Icon: IconMegaphone },
   { to: "/admin/sync", label: "Sync Monitor", Icon: IconSync },
+  { to: "/admin/downloads", label: "Downloads", Icon: IconDownload },
   { to: "/admin/settings", label: "Settings", Icon: IconGear },
 ];
 
@@ -87,6 +89,7 @@ export default function AdminDashboard() {
             <Route path="marketers/revenue" element={<MarketersRevenue />} />
             <Route path="marketers/:affiliateId" element={<AffiliateDetailPage />} />
             <Route path="sync" element={<SyncMonitor />} />
+            <Route path="downloads" element={<Downloads />} />
             <Route path="settings" element={<Settings />} />
             {/* Drill-down reached only by clicking through the Dashboard's
                 capped preview table — not in the sidebar nav. */}

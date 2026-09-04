@@ -186,7 +186,14 @@ export function AuthProvider({ children }) {
     setBranchSyncState((s) => ({ ...s, [gymId]: { ...s[gymId], status: "syncing" } }));
     let ok = true;
     try {
-      await pushPendingChanges(gymId);
+      // pushPendingChanges never throws on a per-record rejection — it
+      // deliberately keeps going so one bad row can't strand a day of
+      // payments — so its RETURN VALUE is the only signal that anything
+      // failed. Ignoring it is what let a rules-denied member push report
+      // "Synced successfully" while the record stayed pending on the
+      // device, invisible everywhere else.
+      const pushResult = await pushPendingChanges(gymId);
+      if (pushResult?.failedCount > 0) ok = false;
       await pullRemoteChanges(gymId);
       await pullFactAndMembers(gymId);
     } catch (err) {
@@ -319,10 +326,19 @@ export function AuthProvider({ children }) {
   async function syncNow() {
     const results = await Promise.all(syncGymIds.map((gid) => runSyncCycle(gid)));
     const allOk = results.every((r) => r.ok);
+    // "Some records were rejected" rather than a flat "sync failed": the
+    // distinction matters to whoever is standing at the desk. A rejected
+    // record is still safe on this device and will retry, but it is NOT
+    // on the server yet and won't be visible to anyone else — which is
+    // exactly the confusion this message exists to prevent.
     setSyncToast(
       allOk
         ? { type: "success", message: "Synced successfully", id: Date.now() }
-        : { type: "error", message: "Sync failed — will retry automatically", id: Date.now() }
+        : {
+            type: "error",
+            message: "Some records didn't sync — still saved here, will retry",
+            id: Date.now(),
+          }
     );
   }
 
