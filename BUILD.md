@@ -2662,6 +2662,26 @@ Also counted: the case where the gym doc can't be read, so `gymPrefix` is
 null and `pushMembers` is skipped entirely. That silently pushed zero
 members while reporting success.
 
+**A related hole, found the same day and closed:** a member photographed
+BEFORE `updated_at` stamping existed could never reach a device that had
+already synced that member. The `created_at` cursor had walked past the
+row; the `updated_at` cursor uses `orderBy("updated_at")`, which silently
+drops documents that lack the field entirely — which is exactly those
+members. The symptom was a photo visible on the web but never in the
+desktop app, and it applied to any stale field, not just photos.
+
+Fixed with `reconcileMembersOnce` in `data/local/pull.js`: one full members
+refetch per gym per app session, applied over whatever is already local.
+Chosen over the alternatives deliberately — a backfill script would need a
+receptionist's credentials (super admin has no `update` on `members` by
+design, and widening that boundary for one migration is the wrong trade),
+and a targeted `photo_url` query would need a new composite index while
+only repairing the one field someone happened to notice. The refetch needs
+no script, no index (single-field `gym_id` equality) and no rules change.
+Once per session, not per cycle: it costs a read per member, which is fine
+when the app opens and wasteful every few minutes. The cursor passes remain
+the steady-state mechanism; this is the self-heal.
+
 **The underlying rejection** was almost certainly §20's `gymIsOperational`
 rules bug, still undeployed at the time. `members` create requires
 `gymIsOperational(...)`, which errored on any gym whose `subscription` map

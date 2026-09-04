@@ -43,6 +43,42 @@ const PAGE_SIZE = 400;
 // registration, because orderBy silently drops documents missing the field.
 const FACT_CURSOR_TABLES = ["payments", "attendance", "membership_records", "equipment_records", "activity_log"];
 
+// Gyms whose members have been fully reconciled in THIS app session. See
+// reconcileMembersOnce for why once-per-session is the right frequency.
+const membersReconciled = new Set();
+
+/**
+ * One full members refetch per gym per app session, applied over whatever
+ * the local database already holds.
+ *
+ * Neither cursor pass can repair a member that was edited BEFORE this
+ * device last synced it: `created_at` has already walked past the row, and
+ * `updated_at` can only find documents that HAVE an updated_at field —
+ * `orderBy` silently drops the ones that don't. Every member edited or
+ * photographed before updated_at stamping existed falls in that hole, and
+ * stays there forever. The symptom is a member whose photo shows on the
+ * web but never in the desktop app.
+ *
+ * A full refetch is the honest fix: it needs no backfill script, no new
+ * composite index (single-field gym_id equality), and no rules change —
+ * and unlike a targeted photo query it repairs any stale field, not just
+ * the one that happened to be noticed.
+ *
+ * Once per session, not per cycle, because it costs one document read per
+ * member: fine occasionally, wasteful every few minutes. The cursor passes
+ * stay the steady-state mechanism; this is the self-heal that runs when
+ * the app opens. applyPulledMembersPage is idempotent on id and refuses to
+ * overwrite rows with unpushed local edits, so re-applying is safe.
+ */
+async function reconcileMembersOnce(gymId) {
+  if (membersReconciled.has(gymId)) return;
+  const rows = await fetchByGymId("members", gymId);
+  if (rows.length > 0) await localInvoke("applyPulledMembersPage", { members: rows });
+  // Only marked done on success — a failed attempt should retry next cycle
+  // rather than leaving the device stuck with stale rows until restart.
+  membersReconciled.add(gymId);
+}
+
 async function fetchGym(gymId) {
   const snap = await getDoc(doc(db, "gyms", gymId));
   return snap.exists() ? gymToIso({ id: snap.id, ...snap.data() }) : null;
@@ -194,8 +230,17 @@ export async function pullFactAndMembers(gymId) {
     console.error("Pull failed for member updates (will retry next cycle):", err);
   }
 
+  // Before the photo pass, because it's what makes photo_url correct for
+  // members this device synced before updated_at stamping existed — without
+  // it those photos are never discovered at all.
+  try {
+    await reconcileMembersOnce(gymId);
+  } catch (err) {
+    console.error("Member reconcile failed (will retry next cycle):", err);
+  }
+
   // Last, and deliberately so: photo files are the largest and least
-  // urgent thing pulled. Both member passes above have already landed, so
+  // urgent thing pulled. Every member pass above has already landed, so
   // photo_url is current before this decides what to download, and a slow
   // photo backlog can never delay the records the desk actually needs to
   // check someone in. Swallows its own errors internally.
