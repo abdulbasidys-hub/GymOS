@@ -154,16 +154,35 @@ async function pushMembers(gymId, members, gymPrefix, errors) {
         if (remoteNo && remoteNo !== member.member_no) {
           await localInvoke("applyMemberRenumber", { memberId: member.id, memberNo: remoteNo });
         } else {
-          // created_at/date_joined deliberately excluded: they round-trip
-          // through local storage as millisecond-precision ISO strings,
-          // which can differ by a sub-millisecond fraction from
-          // Firestore's original server-assigned Timestamp even though
-          // nothing "really" changed — firestore.rules' bio-data-only
-          // affectedKeys() allow-list (BUILD.md §15) would then reject
-          // the whole write over a phantom diff. Neither field should
-          // ever actually change on an edit, so simplest fix: never
-          // resend them.
-          const { created_at, date_joined, ...editableFields } = prepareEntityDoc("members", member);
+          // Send ONLY the bio fields firestore.rules actually permits on a
+          // member update — an explicit allow-list, not "everything except
+          // a couple of fields".
+          //
+          // The subtractive version sent id/gym_id/member_no/active/
+          // actor_uid too, and any one of them differing by so much as a
+          // type put a non-allowed key in affectedKeys() and got the whole
+          // write rejected as permission-denied. It also resent photo_url
+          // from the local row, which is worse than a denial: a member
+          // whose photo was added on the web, edited on a device whose
+          // local row predates the photo_url column, would push
+          // photo_url: null and ERASE the photo in Firestore. Photos are
+          // never edited through this path (memberPhotos.js owns them), so
+          // this list deliberately omits photo_url entirely.
+          //
+          // created_at/date_joined were already excluded and stay excluded:
+          // they round-trip as millisecond-precision ISO strings and can
+          // differ from Firestore's original server Timestamp by a
+          // sub-millisecond fraction, failing the allow-list on a phantom
+          // diff.
+          const EDITABLE = [
+            "name", "phone", "dob", "gender", "weight", "height",
+            "emergency_name", "emergency_phone", "email", "address", "custom_fields",
+          ];
+          const prepared = prepareEntityDoc("members", member);
+          const editableFields = {};
+          for (const key of EDITABLE) {
+            if (prepared[key] !== undefined) editableFields[key] = prepared[key];
+          }
           await setDoc(memberRef, editableFields, { merge: true });
           await localInvoke("markSynced", { table: "members", ids: [member.id] });
         }
