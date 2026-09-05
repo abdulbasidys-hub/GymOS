@@ -2138,3 +2138,9 @@ select option { background: var(--surface); color: var(--text); }
   .row2, .row2--even { gap: 10px; }
   .detail-grid { gap: 18px; }
 }
+
+/* The sync password prompt is a single question, so its card is narrowed
+   from the shared 680px modal width to something proportionate — a wide
+   card around one field reads as though something is missing from it. */
+.modal-card:has(.sync-password) { max-width: 380px; }
+.sync-password .btn { width: 100%; margin-top: 18px; }

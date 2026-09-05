@@ -16,7 +16,7 @@ import Modal from "./Modal";
 // to type it. Records were already saved locally the moment they were
 // entered — this gates when they LEAVE the device, never whether they were
 // kept.
-export default function SyncPasswordModal({ open, username, busy, error, onSubmit, onClose }) {
+export default function SyncPasswordModal({ open, busy, error, onSubmit, onClose }) {
   const [password, setPassword] = useState("");
 
   function submit(e) {
@@ -31,18 +31,8 @@ export default function SyncPasswordModal({ open, username, busy, error, onSubmi
   }
 
   return (
-    <Modal open={open} title="Confirm your password to sync" onClose={close}>
-      <p className="muted">
-        Signing in again makes sure this device has a live connection to your gym&rsquo;s records
-        before anything is sent.
-      </p>
-
-      <form onSubmit={submit} className="section-top">
-        <label className="field">
-          <span>Signed in as</span>
-          <input value={username || ""} disabled />
-        </label>
-
+    <Modal open={open} title="Enter your password to sync" onClose={close}>
+      <form onSubmit={submit} className="sync-password">
         <label className="field">
           <span>Password</span>
           <input
@@ -57,11 +47,9 @@ export default function SyncPasswordModal({ open, username, busy, error, onSubmi
 
         {error && <p className="form-error">{error}</p>}
 
-        <div className="section-top">
-          <button className="btn btn--primary btn--inline" type="submit" disabled={busy || !password}>
-            {busy ? "Syncing…" : "Sync now"}
-          </button>
-        </div>
+        <button className="btn btn--primary" type="submit" disabled={busy || !password}>
+          {busy ? "Syncing…" : "Sync now"}
+        </button>
       </form>
     </Modal>
   );

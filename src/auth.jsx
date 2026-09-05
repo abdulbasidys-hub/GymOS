@@ -407,7 +407,6 @@ export function AuthProvider({ children }) {
       {isElectron() && (
         <SyncPasswordModal
           open={syncPromptOpen}
-          username={account?.username || ""}
           busy={syncPromptBusy}
           error={syncPromptError}
           onSubmit={runSyncWithPassword}

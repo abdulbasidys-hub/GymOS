@@ -21,6 +21,7 @@ import {
 import { db, auth } from "../firebase";
 import { localInvoke } from "./bridge";
 import { formatMemberNumber } from "../../logic/memberNumber";
+import { stripUndefined } from "../../lib/helpers";
 import { FACT_TIMESTAMP_FIELDS, ENTITY_TIMESTAMP_FIELDS, rowToTimestamps } from "./timestamps";
 
 // Firestore write batches cap at 500 ops; 400 leaves headroom without
@@ -32,7 +33,7 @@ const BATCH_SIZE = 400;
  *  becoming exactly what a web-created record already is: 'synced'. */
 function prepareFactDoc(table, row) {
   const { sync_status, ...rest } = row;
-  return rowToTimestamps(table, { ...rest, sync_status: "synced" }, FACT_TIMESTAMP_FIELDS);
+  return stripUndefined(rowToTimestamps(table, { ...rest, sync_status: "synced" }, FACT_TIMESTAMP_FIELDS));
 }
 
 /** Entity collections (plans/custom_fields/users/members) have NO
@@ -40,9 +41,17 @@ function prepareFactDoc(table, row) {
  *  design — only ledger.js-routed FACT records ever got one) — omit it
  *  here rather than introducing a field no other code expects on these
  *  collections. */
+// stripUndefined is NOT optional here. The Firestore SDK THROWS on an
+// undefined field value rather than skipping it, and the local row mappers
+// produce them routinely — electron/local-db/members.cjs's rowToMember
+// returns `custom_fields: undefined` for any member without custom fields,
+// which is most members. The result was that every such member failed to
+// push while payments beside them succeeded, because payments never go
+// through that mapper. The web path has always called stripUndefined
+// (src/data/members.js); this path simply never did.
 function prepareEntityDoc(table, row) {
   const { sync_status, ...rest } = row;
-  return rowToTimestamps(table, rest, ENTITY_TIMESTAMP_FIELDS);
+  return stripUndefined(rowToTimestamps(table, rest, ENTITY_TIMESTAMP_FIELDS));
 }
 
 /** Firebase errors carry a machine-readable `code` ("permission-denied",
