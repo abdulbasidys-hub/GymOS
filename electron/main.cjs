@@ -37,7 +37,7 @@ const activeWatches = new Map();
 function registerLocalDb() {
   const db = getConnection(app.getPath("userData"), safeStorage);
   dbConnection = db;
-  const operations = buildOperations(db);
+  const operations = buildOperations(db, { userDataPath: app.getPath("userData") });
 
   ipcMain.handle("local-db:invoke", (event, operation, args) => {
     const fn = operations[operation];

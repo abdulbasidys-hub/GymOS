@@ -5,6 +5,8 @@
 // new operation is one new entry here, not a matching pair of new
 // preload/main wiring.
 
+const fs = require("node:fs");
+const path = require("node:path");
 const ledger = require("./ledger.cjs");
 const members = require("./members.cjs");
 const memberPhotos = require("./memberPhotos.cjs");
@@ -32,8 +34,27 @@ const session = require("./session.cjs");
  * single source of truth for "the" db, called fresh by main.cjs's
  * ipcMain.handle wiring each time.
  */
-function buildOperations(db) {
+// A plain-text sync log next to the local database, so a failure on a
+// customer's machine can be READ rather than described down a phone line.
+// The packaged app has no menu and no DevTools; a console.error there
+// reaches nobody. Appends, capped, and never throws — a logging failure
+// must not become the error it was trying to record.
+function appendSyncLog(userDataPath, { line }) {
+  try {
+    const file = path.join(userDataPath, "sync-errors.log");
+    let existing = "";
+    try { existing = fs.readFileSync(file, "utf8"); } catch {}
+    // Keep the tail only — this is a diagnostic, not an audit trail.
+    if (existing.length > 200000) existing = existing.slice(-100000);
+    fs.writeFileSync(file, `${existing}${new Date().toISOString()}  ${line}
+`, "utf8");
+  } catch {}
+  return { ok: true };
+}
+
+function buildOperations(db, { userDataPath } = {}) {
   return {
+    appendSyncLog: (args) => appendSyncLog(userDataPath, args),
     ping: () => "pong",
 
     appendRecord: (args) => ledger.appendRecord(db, args),

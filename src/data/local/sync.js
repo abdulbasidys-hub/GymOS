@@ -60,6 +60,13 @@ function prepareEntityDoc(table, row) {
  *  this string ends up in front of whoever is standing at the desk — and,
  *  crucially, is the ONLY diagnostic they have: the packaged app has no
  *  menu and no DevTools, so a console.error reaches nobody. */
+/** Mirrors a failure into <userData>/sync-errors.log via the main process.
+ *  Fire-and-forget: the log is a diagnostic, and a logging failure must
+ *  never become the error it was trying to record. */
+function logFailure(line) {
+  localInvoke("appendSyncLog", { line }).catch(() => {});
+}
+
 function describeFailure(what, err) {
   const code = err?.code || err?.name || "";
   const detail = code || err?.message || "unknown error";
@@ -71,7 +78,12 @@ function describeFailure(what, err) {
   // from the outside. Naming it turns an unanswerable denial into an
   // obvious one.
   const session = auth.currentUser ? `uid ${auth.currentUser.uid.slice(0, 6)}…` : "NO Firebase session";
-  return `${what}: ${detail} [${session}]`;
+  const described = `${what}: ${detail} [${session}]`;
+  // The full message matters as much as the code — an SDK validation
+  // rejection ("Unsupported field value: undefined") reads nothing like a
+  // rules denial, and only the raw text distinguishes them.
+  logFailure(`${described} :: ${err?.message || ""}`);
+  return described;
 }
 
 function chunk(items, size) {
