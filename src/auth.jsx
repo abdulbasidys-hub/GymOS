@@ -243,7 +243,7 @@ export function AuthProvider({ children }) {
     (async () => {
       for (const gid of gymIds) {
         if (cancelled) return;
-        await ensureBootstrapped(gid);
+        await ensureBootstrapped(gid, { role: account?.role, uid: user?.uid });
       }
       // No sync cycle here any more. Bootstrap seeds a brand-new device
       // (a no-op once local data exists) and stops — see the note on
@@ -253,7 +253,7 @@ export function AuthProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [account?.gym_id, account?.gym_ids?.join(",")]);
+  }, [account?.gym_id, account?.gym_ids?.join(","), account?.role, user?.uid]);
 
   // There is deliberately NO automatic sync any more — no hourly interval,
   // no "online" event listener, no cycle on sign-in. Syncing happens only
