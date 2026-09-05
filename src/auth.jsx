@@ -6,7 +6,7 @@
 // permission enforcement is firestore.rules on the server.
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { watchAuth, signOutUser, watchUserRecord, watchGym, getGym } from "./data";
+import { watchAuth, signOutUser, watchUserRecord, watchGym, getGym, ensureOnlineSession } from "./data";
 import { ensureBootstrapped } from "./data/local/bootstrap";
 import { pushPendingChanges } from "./data/local/sync";
 import { pullRemoteChanges, pullFactAndMembers } from "./data/local/pull";
@@ -187,6 +187,22 @@ export function AuthProvider({ children }) {
     let ok = true;
     let pushErrors = [];
     try {
+      // Nothing below can reach Firestore without a real Firebase session,
+      // and a desk that signed in during an outage does not have one — the
+      // offline sign-in never touches Firebase Auth, so request.auth is
+      // null server-side and every read and write is denied. This upgrades
+      // that session transparently once the network is back. Until it
+      // succeeds there is no point running the cycle: it would just
+      // generate a wall of permission-denied errors and report failure for
+      // a reason the user can do nothing about.
+      const online = await ensureOnlineSession();
+      if (!online) {
+        setBranchSyncState((s) => ({
+          ...s,
+          [gymId]: { ...s[gymId], status: "idle" },
+        }));
+        return { ok: false, errors: ["waiting for a connection to sign in again"] };
+      }
       // pushPendingChanges never throws on a per-record rejection — it
       // deliberately keeps going so one bad row can't strand a day of
       // payments — so its RETURN VALUE is the only signal that anything

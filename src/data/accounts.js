@@ -39,14 +39,69 @@ export function watchAuth(callback) {
   return onAuthStateChanged(auth, callback);
 }
 
+// Credentials for an offline-authenticated session, held in memory ONLY so
+// the session can be upgraded to a real Firebase one the moment the network
+// comes back (ensureOnlineSession below).
+//
+// Why this has to exist: firestore.rules rejects unauthenticated requests,
+// and an offline sign-in never touches Firebase Auth, so request.auth is
+// null server-side. Without an upgrade path that state is a ONE-WAY DOOR —
+// the desk signs in during an outage, works all day, reconnects, and every
+// single push is still denied because there is no session. Sync appears to
+// run and silently achieves nothing until someone thinks to sign out and
+// back in, which nobody would know to do.
+//
+// Why the plaintext password: Firebase needs it to mint a session, and it
+// is unrecoverable from anything on disk — local_credentials stores only a
+// scrypt hash and salt, deliberately. Never written anywhere, never leaves
+// this process, and cleared on sign-out. It lives no longer than the
+// session it belongs to.
+let offlineSessionCredentials = null;
+
+/**
+ * Makes sure there is a real Firebase session before anything tries to
+ * reach Firestore. Returns true if one exists (or was just established).
+ *
+ * Three cases: already signed in — nothing to do; signed in offline and
+ * still offline — the upgrade fails on a network error and the caller
+ * skips its cycle; signed in offline and now online — a real sign-in
+ * happens transparently, and the desk never sees a thing.
+ *
+ * Re-capturing the credential on success is not incidental: it refreshes
+ * last_online_at, which is what the 14-day offline window is measured
+ * from. A device that keeps reconnecting keeps earning its offline access.
+ */
+export async function ensureOnlineSession() {
+  if (auth.currentUser) return true;
+  if (!window.gymOS?.isElectron || !offlineSessionCredentials) return false;
+
+  const { username, password } = offlineSessionCredentials;
+  try {
+    const cred = await signInWithEmailAndPassword(auth, usernameToEmail(username), password);
+    const snap = await getDoc(doc(db, "users", cred.user.uid)).catch(() => null);
+    const gymId = snap?.exists() ? snap.data().gym_id ?? null : null;
+    await localInvoke("captureCredential", { uid: cred.user.uid, username, gymId, password }).catch(() => {});
+    offlineSessionCredentials = null;
+    return true;
+  } catch (err) {
+    // Still offline: keep the credentials and try again next cycle. Any
+    // OTHER failure (the password was changed centrally, the account was
+    // disabled) means these credentials will never work again — drop them
+    // rather than retrying a rejected password every cycle, which is how
+    // accounts get locked out for repeated failed attempts.
+    if (err?.code !== "auth/network-request-failed") {
+      console.error("Couldn't upgrade the offline session to an online one:", err?.code || err);
+      offlineSessionCredentials = null;
+    }
+    return false;
+  }
+}
+
 /**
  * Sign in with a USERNAME + password. Always tries the real Firebase
  * sign-in first — needed both to confirm the password is still current
- * and, critically, to establish a real Firestore-authorized session:
- * `firestore.rules` rejects unauthenticated requests, so a session
- * established purely offline (below) can queue local writes exactly like
- * any offline-created record already does, but can't actually reach
- * Firestore until a FUTURE online sign-in re-establishes a real session.
+ * and to establish a real Firestore-authorized session, since
+ * `firestore.rules` rejects unauthenticated requests.
  *
  * Electron offline fallback (BUILD.md §15): a network failure here falls
  * back to `verifyCredential` — a locally scrypt-hashed password check
@@ -58,6 +113,12 @@ export function watchAuth(callback) {
  * pre-authorize a gym's whole staff from just one person's login — each
  * person's own offline access activates the first time THEY personally
  * sign in online on this device.
+ *
+ * An offline sign-in used to be a dead end for syncing: no Firebase
+ * session meant every push was denied for the rest of that session, even
+ * after the connection came back. It now hands its credentials to
+ * ensureOnlineSession above, which upgrades the session in the background
+ * the moment Firebase is reachable.
  */
 export async function signInWithUsername(username, password) {
   try {
@@ -79,6 +140,7 @@ export async function signInWithUsername(username, password) {
       // recognize the sign-in (watchAuth watches local_session there).
       await localInvoke("setLocalSession", { uid: cred.user.uid, username, gymId });
     }
+    offlineSessionCredentials = null;
     return cred;
   } catch (err) {
     // Deliberately narrow — ONLY Firebase's own definitive "the request
@@ -94,6 +156,11 @@ export async function signInWithUsername(username, password) {
       const result = await localInvoke("verifyCredential", { username, password });
       if (result.ok) {
         await localInvoke("setLocalSession", { uid: result.uid, username: result.username, gymId: result.gymId });
+        // Held so ensureOnlineSession can turn this into a real Firebase
+        // session as soon as the connection returns — without it this
+        // sign-in could never reach Firestore again, no matter how long
+        // the machine stayed online afterwards.
+        offlineSessionCredentials = { username, password };
         return result;
       }
       const code =
@@ -113,6 +180,9 @@ export async function signInWithUsername(username, password) {
  *  signOut() too, since a purely offline-authenticated session never had
  *  a real Firebase session to begin with. */
 export async function signOutUser() {
+  // Before anything else: these must not outlive the session, and must not
+  // be left behind for whoever signs in next on a shared desk machine.
+  offlineSessionCredentials = null;
   if (window.gymOS?.isElectron) {
     await localInvoke("clearLocalSession", {});
   }

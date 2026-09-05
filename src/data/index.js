@@ -11,6 +11,7 @@ export {
   watchAuth,
   signInWithUsername,
   signOutUser,
+  ensureOnlineSession,
   getUserRecord,
   watchUserRecord,
   changeOwnPassword,
