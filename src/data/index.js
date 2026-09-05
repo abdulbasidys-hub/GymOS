@@ -13,7 +13,6 @@ export {
   signOutUser,
   ensureOnlineSession,
   reauthenticateForSync,
-  hasFirebaseSession,
   getUserRecord,
   watchUserRecord,
   changeOwnPassword,
