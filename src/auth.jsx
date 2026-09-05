@@ -6,7 +6,7 @@
 // permission enforcement is firestore.rules on the server.
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { watchAuth, signOutUser, watchUserRecord, watchGym, getGym, ensureOnlineSession } from "./data";
+import { watchAuth, signOutUser, watchUserRecord, watchGym, getGym, reauthenticateForSync } from "./data";
 import { ensureBootstrapped } from "./data/local/bootstrap";
 import { pushPendingChanges } from "./data/local/sync";
 import { pullRemoteChanges, pullFactAndMembers } from "./data/local/pull";
@@ -15,15 +15,11 @@ import { localInvoke } from "./data/local/bridge";
 import { licenseStatus } from "./logic/license";
 import { useIdleTimeout } from "./hooks/useIdleTimeout";
 import SyncToast from "./components/SyncToast";
+import SyncPasswordModal from "./components/SyncPasswordModal";
 
 const AuthContext = createContext(null);
 const isElectron = () => !!window.gymOS?.isElectron;
 
-// Hourly — was every 5 minutes; widened per explicit request once the
-// popup below made "how often does this run" actually visible/felt,
-// rather than a silent background detail. Reconnect (the `online` event
-// listener below) still syncs immediately regardless of this interval.
-const SYNC_INTERVAL_MS = 60 * 60 * 1000;
 const CLOCK_TICK_MS = 60 * 1000;
 
 // Multi-branch owners (BUILD.md §6): every gym this account can act
@@ -63,6 +59,10 @@ export function AuthProvider({ children }) {
   // Result popup for a MANUALLY-triggered sync only — see SyncToast's own
   // comment on why the automatic background cycle never sets this.
   const [syncToast, setSyncToast] = useState(null); // { type: "success" | "error", message, id } | null
+  // Manual-sync password prompt (Electron only) — see SyncPasswordModal.
+  const [syncPromptOpen, setSyncPromptOpen] = useState(false);
+  const [syncPromptBusy, setSyncPromptBusy] = useState(false);
+  const [syncPromptError, setSyncPromptError] = useState("");
 
   // Phase 4 (BUILD.md §13): forward-only clock for offline license
   // enforcement — see data/local/clock.js. Unused on the web build, where
@@ -263,37 +263,34 @@ export function AuthProvider({ children }) {
     let cancelled = false;
     (async () => {
       for (const gid of gymIds) {
+        if (cancelled) return;
         await ensureBootstrapped(gid);
       }
-      for (const gid of gymIds) {
-        if (cancelled) return;
-        await runSyncCycle(gid);
-      }
+      // No sync cycle here any more. Bootstrap seeds a brand-new device
+      // (a no-op once local data exists) and stops — see the note on
+      // syncNow: syncing is now something a person does deliberately,
+      // never something that happens on its own.
     })();
     return () => {
       cancelled = true;
     };
   }, [account?.gym_id, account?.gym_ids?.join(",")]);
 
-  // Milestone 3 (BUILD.md §15), extended for §6: keep every branch syncing
-  // after that first cycle — every hour, and immediately whenever the OS
-  // reports connectivity returning (a real signal, not polling). Runs all
-  // branches in parallel here (unlike the one-time bootstrap above) —
-  // lighter incremental cycles, and syncNow needs them settled together
-  // for its one combined toast anyway. Electron-only; a plain no-op effect
-  // on the web build.
-  useEffect(() => {
-    if (!isElectron()) return;
-    const gymIds = resolveGymIds(account);
-    if (gymIds.length === 0) return;
-    const cycleAll = () => gymIds.forEach((gid) => runSyncCycle(gid));
-    const interval = setInterval(cycleAll, SYNC_INTERVAL_MS);
-    window.addEventListener("online", cycleAll);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener("online", cycleAll);
-    };
-  }, [account?.gym_id, account?.gym_ids?.join(",")]);
+  // There is deliberately NO automatic sync any more — no hourly interval,
+  // no "online" event listener, no cycle on sign-in. Syncing happens only
+  // when someone presses Sync now.
+  //
+  // Automatic syncing was actively harmful here rather than merely
+  // unnecessary. Every cycle ran against whatever Firebase session
+  // happened to exist, which offline is none at all, so the app generated
+  // a steady stream of failures nobody asked for and nobody could act on,
+  // and the real failure was buried in the noise. Explicit sync also means
+  // the password prompt below is tied to a deliberate action, instead of
+  // ambushing whoever is at the desk an hour into a shift.
+  //
+  // Records are never at risk from this: everything is written to local
+  // SQLite first and marked pending, exactly as before. Nothing waits on
+  // a sync to be saved — sync only decides when it LEAVES the device.
 
   // Phase 4 (BUILD.md §13): refresh the forward-only clock anchor when the
   // gym resolves and every 60s after, so a long-open offline session that
@@ -355,8 +352,33 @@ export function AuthProvider({ children }) {
 
   // The manual "Sync now" button — every branch at once, one combined
   // toast rather than one per branch (see runSyncCycle's own comment).
-  async function syncNow() {
+  // The button no longer syncs — it asks for the password first. The
+  // actual work happens in runSyncWithPassword once that is confirmed.
+  function syncNow() {
+    setSyncPromptError("");
+    setSyncPromptOpen(true);
+  }
+
+  async function runSyncWithPassword(password) {
+    setSyncPromptBusy(true);
+    setSyncPromptError("");
+    try {
+      await reauthenticateForSync(account?.username || user?.username, password);
+    } catch (err) {
+      setSyncPromptBusy(false);
+      setSyncPromptError(
+        err?.code === "auth/network-request-failed"
+          ? "Can't reach the server. Check your internet connection and try again."
+          : err?.code === "auth/invalid-credential" || err?.code === "auth/wrong-password"
+          ? "That password isn't right."
+          : `Couldn't sign in (${err?.code || "unknown error"}).`
+      );
+      return;
+    }
+
     const results = await Promise.all(syncGymIds.map((gid) => runSyncCycle(gid)));
+    setSyncPromptBusy(false);
+    setSyncPromptOpen(false);
     const allOk = results.every((r) => r.ok);
     // The packaged desktop app has no menu and no DevTools, so a
     // console.error is invisible to the person actually holding the
@@ -403,6 +425,16 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider value={value}>
       {children}
       <SyncToast toast={syncToast} onDismiss={() => setSyncToast(null)} />
+      {isElectron() && (
+        <SyncPasswordModal
+          open={syncPromptOpen}
+          username={account?.username || ""}
+          busy={syncPromptBusy}
+          error={syncPromptError}
+          onSubmit={runSyncWithPassword}
+          onClose={() => setSyncPromptOpen(false)}
+        />
+      )}
     </AuthContext.Provider>
   );
 }

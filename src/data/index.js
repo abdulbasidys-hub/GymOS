@@ -12,6 +12,7 @@ export {
   signInWithUsername,
   signOutUser,
   ensureOnlineSession,
+  reauthenticateForSync,
   getUserRecord,
   watchUserRecord,
   changeOwnPassword,

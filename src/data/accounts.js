@@ -130,6 +130,33 @@ export async function ensureOnlineSession() {
 }
 
 /**
+ * A FRESH Firebase sign-in performed immediately before a manual sync, so
+ * the session doing the writing is provably live rather than a cached one
+ * that may already be revoked.
+ *
+ * This exists because auth.currentUser is only a local cache: Firebase
+ * restores it from storage without asking the server, so it can look
+ * signed-in while every request is denied. Rather than detect that after
+ * the fact, a manual sync just re-establishes the session from the
+ * password each time — the password is the one thing that always produces
+ * a genuinely current token.
+ *
+ * Also re-captures the offline credential, which refreshes last_online_at
+ * and so renews the 14-day offline sign-in window on every successful sync.
+ */
+export async function reauthenticateForSync(username, password) {
+  const cred = await signInWithEmailAndPassword(auth, usernameToEmail(username), password);
+  if (window.gymOS?.isElectron) {
+    const snap = await getDoc(doc(db, "users", cred.user.uid)).catch(() => null);
+    const gymId = snap?.exists() ? snap.data().gym_id ?? null : null;
+    await localInvoke("captureCredential", { uid: cred.user.uid, username, gymId, password }).catch(() => {});
+    await localInvoke("setLocalSession", { uid: cred.user.uid, username, gymId }).catch(() => {});
+  }
+  offlineSessionCredentials = null;
+  return cred;
+}
+
+/**
  * Sign in with a USERNAME + password. Always tries the real Firebase
  * sign-in first — needed both to confirm the password is still current
  * and to establish a real Firestore-authorized session, since

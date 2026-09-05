@@ -73,7 +73,7 @@ service cloud.firestore {
       allow update: if isSuperAdmin() ||
         (isReceptionist() && inMyGym(gymId) && gymIsOperational(gymId) &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['member_seq']) &&
-         request.resource.data.member_seq == resource.data.member_seq + 1);
+         request.resource.data.get('member_seq', 0) > resource.data.get('member_seq', 0));
       allow delete: if isSuperAdmin();
     }
 
