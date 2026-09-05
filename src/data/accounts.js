@@ -144,6 +144,14 @@ export async function ensureOnlineSession() {
  * Also re-captures the offline credential, which refreshes last_online_at
  * and so renews the 14-day offline sign-in window on every successful sync.
  */
+/** Is there a REAL Firebase session right now — i.e. did this person sign
+ *  in online, rather than against the local credential store? True only
+ *  after a genuine Firebase sign-in, which is exactly the moment a sync can
+ *  run without asking for a password again. */
+export function hasFirebaseSession() {
+  return !!auth.currentUser;
+}
+
 export async function reauthenticateForSync(username, password) {
   const cred = await signInWithEmailAndPassword(auth, usernameToEmail(username), password);
   if (window.gymOS?.isElectron) {

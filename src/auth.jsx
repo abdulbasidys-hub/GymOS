@@ -6,7 +6,7 @@
 // permission enforcement is firestore.rules on the server.
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { watchAuth, signOutUser, watchUserRecord, watchGym, getGym, reauthenticateForSync } from "./data";
+import { watchAuth, signOutUser, watchUserRecord, watchGym, getGym, reauthenticateForSync, hasFirebaseSession } from "./data";
 import { ensureBootstrapped } from "./data/local/bootstrap";
 import { pushPendingChanges } from "./data/local/sync";
 import { pullRemoteChanges, pullFactAndMembers } from "./data/local/pull";
@@ -245,10 +245,31 @@ export function AuthProvider({ children }) {
         if (cancelled) return;
         await ensureBootstrapped(gid, { role: account?.role, uid: user?.uid });
       }
-      // No sync cycle here any more. Bootstrap seeds a brand-new device
-      // (a no-op once local data exists) and stops — see the note on
-      // syncNow: syncing is now something a person does deliberately,
-      // never something that happens on its own.
+      // One sync on every ONLINE sign-in, and SILENTLY.
+      //
+      // Gated on hasFirebaseSession(): true only when this person just
+      // authenticated against Firebase, so the session is provably live and
+      // no password prompt is needed — they typed it seconds ago. An
+      // offline sign-in leaves it false and nothing runs, which is correct:
+      // there is nothing to sync to.
+      //
+      // Silent by construction, not by suppression: runSyncCycle never
+      // raises the toast. Only syncNow does, because only a person who
+      // pressed a button is waiting for an answer. A sign-in that quietly
+      // succeeds should say nothing, and one that quietly fails should not
+      // interrupt someone opening the app — the sidebar's pending count
+      // already shows anything still waiting to go up.
+      //
+      // This is NOT the hourly timer that was removed. That fired on a
+      // clock against whatever session happened to exist (usually none) and
+      // produced failures nobody could act on. This fires because a person
+      // signed in, at the one moment the session is guaranteed good.
+      if (!cancelled && hasFirebaseSession()) {
+        for (const gid of gymIds) {
+          if (cancelled) return;
+          await runSyncCycle(gid);
+        }
+      }
     })();
     return () => {
       cancelled = true;
