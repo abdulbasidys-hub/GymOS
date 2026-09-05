@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../auth";
+import { localInvoke } from "../../data/local/bridge";
 import {
   searchMembers,
   createMember,
@@ -209,7 +210,19 @@ export default function RegisterMember() {
       navigate(`/desk/member/${member.id}`);
     } catch (err) {
       console.error(err);
-      setError("Couldn't register this member.");
+      // "Gym not found" is the one failure worth naming, because it means
+      // something specific and fixable: this device never finished its
+      // initial download, so there is no local gym record to number the
+      // member against. Telling the user to sign in online once is an
+      // actual instruction; "Couldn't register this member" is a dead end.
+      const raw = String(err?.message || "");
+      setError(
+        raw.includes("Gym not found")
+          ? "This device hasn't finished its first download yet. Connect to the internet, sign in once, then try again."
+          : "Couldn't register this member."
+      );
+      // Also to disk — the packaged app has no console anyone can reach.
+      localInvoke("appendSyncLog", { line: `register member FAILED: ${raw || err}` }).catch(() => {});
     } finally {
       setBusy(false);
     }

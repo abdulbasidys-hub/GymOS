@@ -6,7 +6,7 @@
 // permission enforcement is firestore.rules on the server.
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { watchAuth, signOutUser, watchUserRecord, watchGym, getGym, reauthenticateForSync } from "./data";
+import { watchAuth, signOutUser, watchUserRecord, watchGym, getGym, reauthenticateForSync, hasFirebaseSession } from "./data";
 import { ensureBootstrapped } from "./data/local/bootstrap";
 import { pushPendingChanges } from "./data/local/sync";
 import { pullRemoteChanges, pullFactAndMembers } from "./data/local/pull";
@@ -245,10 +245,26 @@ export function AuthProvider({ children }) {
         if (cancelled) return;
         await ensureBootstrapped(gid, { role: account?.role, uid: user?.uid });
       }
-      // No sync cycle here any more. Bootstrap seeds a brand-new device
-      // (a no-op once local data exists) and stops — see the note on
-      // syncNow: syncing is now something a person does deliberately,
-      // never something that happens on its own.
+      // One sync right after an ONLINE sign-in, and only then.
+      //
+      // This is the one automatic sync that earns its place. hasFirebaseSession
+      // is true only when the person authenticated against Firebase moments
+      // ago, so the session is provably live and no password prompt is
+      // needed — they just typed it. Signing in offline leaves it false and
+      // nothing runs, which is correct: there is nothing to sync to.
+      //
+      // Deliberately NOT the old behaviour. What was removed was the hourly
+      // timer and the reconnect listener, which fired against whatever
+      // session happened to exist — usually none — and buried real failures
+      // in noise nobody could act on. Tying it to a sign-in keeps it
+      // predictable: it happens when a person does something, not on a
+      // clock.
+      if (!cancelled && hasFirebaseSession()) {
+        for (const gid of gymIds) {
+          if (cancelled) return;
+          await runSyncCycle(gid);
+        }
+      }
     })();
     return () => {
       cancelled = true;

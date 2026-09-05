@@ -66,8 +66,18 @@ async function settle(label, promise) {
     return await promise;
   } catch (err) {
     console.error(`Bootstrap: couldn't fetch ${label} (continuing without it):`, err?.code || err);
+    logLine(`bootstrap ${label}: ${err?.code || err?.message || "failed"}`);
     return null;
   }
+}
+
+/** Bootstrap failures belong in the same on-disk log as sync failures.
+ *  They were console-only, which on a packaged app means nobody sees them —
+ *  and a bootstrap that seeds nothing is the single most consequential
+ *  failure on a fresh install: the device then has no gym row, so it cannot
+ *  register a member offline at all. Fire-and-forget by design. */
+function logLine(line) {
+  localInvoke("appendSyncLog", { line }).catch(() => {});
 }
 
 /**
@@ -130,6 +140,7 @@ export async function ensureBootstrapped(gymId, viewer = {}) {
     // return true forever, permanently stranding the device.
     if (!gym) {
       console.error("Bootstrap: gym record unavailable — not seeding, will retry on next sign-in.");
+      logLine("bootstrap ABORTED: gym record unavailable — nothing seeded, offline use will not work");
       return;
     }
 
@@ -137,7 +148,12 @@ export async function ensureBootstrapped(gymId, viewer = {}) {
       gym, staff, plans, customFields, members, payments, membershipRecords, equipmentRecords, attendance, activityLog,
       cursorSeed,
     });
+    logLine(
+      `bootstrap OK: members=${members?.length ?? 0} plans=${plans?.length ?? 0} ` +
+      `staff=${staff?.length ?? 0} payments=${payments?.length ?? 0}`
+    );
   } catch (err) {
     console.error("Bootstrap import skipped (likely offline on a fresh install):", err);
+    logLine(`bootstrap FAILED: ${err?.code || err?.message || err}`);
   }
 }
