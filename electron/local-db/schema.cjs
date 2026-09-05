@@ -18,6 +18,13 @@
 // in place for schema changes later (Phase 3 will need one), even though
 // today it's a single "create everything" migration.
 
+// APPEND ONLY. Never insert a migration in the middle of this array.
+// Each entry's INDEX is its schema version: a database at user_version N
+// runs MIGRATIONS[N] next. Inserting one shifts every later entry, so an
+// existing install re-runs a migration it has already applied — which
+// throws ("table already exists"), rolls back, and leaves the app unable
+// to open. A fresh database still migrates cleanly, so this failure is
+// invisible unless the UPGRADE path is tested specifically.
 const MIGRATIONS = [
   // version 1: initial schema
   (db) => {
@@ -319,7 +326,21 @@ const MIGRATIONS = [
   // Storage path is stable per member (member_photos/{gym}/{member}) but the
   // download URL carries a token that changes on re-upload, so a plain
   // "do we have a row?" check would pin the first photo forever.
-  // version 7: members.remote_created — does this member exist in Firestore?
+  (db) => {
+    db.exec(`
+      CREATE TABLE member_photos (
+        member_id TEXT PRIMARY KEY,
+        gym_id TEXT,
+        url TEXT,
+        content_type TEXT,
+        bytes BLOB,
+        byte_size INTEGER,
+        fetched_at TEXT
+      );
+      CREATE INDEX idx_member_photos_gym_id ON member_photos(gym_id);
+    `);
+  },
+  // version 7 (APPENDED — see the warning above): members.remote_created — does this member exist in Firestore?
   //
   // The push used to answer that with a getDoc on members/{id}, which is
   // DENIED for a member that does not exist yet: firestore.rules' members
@@ -338,21 +359,6 @@ const MIGRATIONS = [
     db.exec(`ALTER TABLE members ADD COLUMN remote_created INTEGER NOT NULL DEFAULT 0;`);
     // Anything already marked synced came from, or reached, Firestore.
     db.exec(`UPDATE members SET remote_created = 1 WHERE sync_status = 'synced';`);
-  },
-
-  (db) => {
-    db.exec(`
-      CREATE TABLE member_photos (
-        member_id TEXT PRIMARY KEY,
-        gym_id TEXT,
-        url TEXT,
-        content_type TEXT,
-        bytes BLOB,
-        byte_size INTEGER,
-        fetched_at TEXT
-      );
-      CREATE INDEX idx_member_photos_gym_id ON member_photos(gym_id);
-    `);
   },
 ];
 
