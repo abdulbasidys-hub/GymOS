@@ -14,9 +14,23 @@ function applyTheme(preference) {
 }
 
 export function ThemeProvider({ children }) {
+  // Light is the default, not "system". A first-time visitor or a freshly
+  // installed desk machine gets light regardless of what the OS is set to —
+  // GymOS is a light-first product and should look like itself on first
+  // run, rather than inheriting whatever a particular Windows install
+  // happens to have configured.
+  //
+  // "system" remains a first-class CHOICE in the settings picker; it just
+  // isn't the default any more. Anything already stored still wins, so
+  // nobody who has picked a theme gets overridden by this.
+  //
+  // index.html applies the same rule inline before this bundle loads —
+  // without that, a dark-OS machine paints one dark frame from the
+  // prefers-color-scheme fallback before React mounts. Keep the two in
+  // sync: same storage key, same default.
   const [preference, setPreference] = useState(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored === "light" || stored === "dark" ? stored : "system";
+    return stored === "light" || stored === "dark" || stored === "system" ? stored : "light";
   });
 
   useEffect(() => {
