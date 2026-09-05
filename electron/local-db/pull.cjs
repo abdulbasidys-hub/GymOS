@@ -234,6 +234,10 @@ function applyPulledMembersPage(db, { members }) {
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced')`
   );
   const existsStmt = db.prepare("SELECT sync_status FROM members WHERE id = ?");
+  // Used only on a UNIQUE(gym_id, member_no) violation — finds which local
+  // row is squatting on the number a pulled member needs.
+  const existsByNoStmt = db.prepare("SELECT id, sync_status FROM members WHERE gym_id = ? AND member_no = ?");
+  const renumberStmt = db.prepare("UPDATE members SET member_no = ? WHERE id = ?");
 
   // Members are NOT create-only any more: a member's photo is attached
   // after registration (photo_url), and firestore.rules permits editing
@@ -290,8 +294,46 @@ function applyPulledMembersPage(db, { members }) {
         insertedCount++;
         cursorAdvancedTo = m.created_at;
       } catch (err) {
-        if (String(err.message).includes("UNIQUE")) break; // member_no collision — stop; retry next cycle
-        throw err;
+        if (!String(err.message).includes("UNIQUE")) throw err;
+
+        // member_no collision. This used to `break`, on the assumption that
+        // the next cycle would find it resolved — but it never can, and the
+        // stall is total: the page stops here, so this member AND every
+        // member after it stop arriving, indefinitely.
+        //
+        // It happens whenever a member registered offline on this device is
+        // handed the same number that Firestore's own counter later gave to
+        // a member registered elsewhere. Both hold SBG-0101; the local one
+        // keeps it until it pushes; if the push is failing for any reason,
+        // the pull is wedged forever.
+        //
+        // The remote row wins, because a local PENDING member's number is
+        // provisional by design — sync.js recomputes it from Firestore's
+        // member_seq inside the create transaction and calls
+        // applyMemberRenumber afterwards, so whatever is sitting here now
+        // was only ever a guess. Move the guess aside and let the
+        // authoritative row land. The placeholder is unique per row (ids
+        // are unique) so it cannot collide in turn, and it is visibly
+        // provisional if anyone sees it before the push corrects it.
+        const clash = existsByNoStmt.get(m.gym_id ?? null, m.member_no ?? null);
+        if (clash && clash.sync_status === "pending" && clash.id !== m.id) {
+          renumberStmt.run(`PENDING-${clash.id.slice(0, 8)}`, clash.id);
+          stmt.run(
+            m.id, m.gym_id ?? null, m.member_no ?? null, m.name ?? null, m.phone ?? null,
+            m.dob ?? null, m.gender ?? null, m.weight ?? null, m.height ?? null, m.date_joined ?? null,
+            m.emergency_name ?? null, m.emergency_phone ?? null, m.email ?? null, m.address ?? null,
+            m.custom_fields ? JSON.stringify(m.custom_fields) : null,
+            m.active === false ? 0 : 1, m.created_at ?? null, m.actor_uid ?? null,
+            m.photo_url ?? null
+          );
+          insertedCount++;
+          cursorAdvancedTo = m.created_at;
+          continue;
+        }
+        // A collision with an already-SYNCED row is a genuine anomaly (two
+        // synced members sharing a number should be impossible) — stop and
+        // let it be investigated rather than papering over it.
+        break;
       }
     }
   })();

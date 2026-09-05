@@ -18,7 +18,7 @@ import {
   runTransaction,
   deleteDoc,
 } from "firebase/firestore";
-import { db } from "../firebase";
+import { db, auth } from "../firebase";
 import { localInvoke } from "./bridge";
 import { formatMemberNumber } from "../../logic/memberNumber";
 import { FACT_TIMESTAMP_FIELDS, ENTITY_TIMESTAMP_FIELDS, rowToTimestamps } from "./timestamps";
@@ -54,7 +54,15 @@ function prepareEntityDoc(table, row) {
 function describeFailure(what, err) {
   const code = err?.code || err?.name || "";
   const detail = code || err?.message || "unknown error";
-  return `${what}: ${detail}`;
+  // Whether a Firebase session exists at all is the single most useful fact
+  // about a permission-denied, and it is invisible otherwise. Electron can
+  // sign someone in OFFLINE against the local credential store without ever
+  // reaching Firebase Auth — in that state request.auth is null server-side
+  // and EVERY write is denied, which looks identical to a rules problem
+  // from the outside. Naming it turns an unanswerable denial into an
+  // obvious one.
+  const session = auth.currentUser ? `uid ${auth.currentUser.uid.slice(0, 6)}…` : "NO Firebase session";
+  return `${what}: ${detail} [${session}]`;
 }
 
 function chunk(items, size) {
