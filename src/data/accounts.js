@@ -72,8 +72,39 @@ let offlineSessionCredentials = null;
  * from. A device that keeps reconnecting keeps earning its offline access.
  */
 export async function ensureOnlineSession() {
-  if (auth.currentUser) return true;
-  if (!window.gymOS?.isElectron || !offlineSessionCredentials) return false;
+  // `auth.currentUser` is a LOCAL CACHE and it lies. Firebase restores it
+  // from storage at startup without contacting the server, so it is
+  // non-null even when the refresh token behind it has been revoked or
+  // invalidated (a password changed on another device, a session revoked,
+  // a deleted account). In that state every Firestore call is denied while
+  // the client cheerfully reports someone is signed in — which looked
+  // exactly like a rules bug: a 400 from the token endpoint, then a wall
+  // of permission-denied across every read and write.
+  //
+  // Forcing a refresh is the only way to ask the SERVER whether this
+  // session is still real.
+  if (auth.currentUser) {
+    try {
+      await auth.currentUser.getIdToken(true);
+      return { ok: true };
+    } catch (err) {
+      // Offline: the token can't be checked, but the cached session is the
+      // best evidence available and may well still be valid. Don't destroy
+      // it — just skip this cycle.
+      if (err?.code === "auth/network-request-failed") {
+        return { ok: false, reason: "offline" };
+      }
+      // Online and the server refused it. The session is genuinely dead;
+      // clearing it is what lets the offline credentials below (or, failing
+      // that, a fresh sign-in) take over instead of retrying a corpse.
+      console.error("Firebase session is no longer valid:", err?.code || err);
+      await signOut(auth).catch(() => {});
+    }
+  }
+
+  if (!window.gymOS?.isElectron || !offlineSessionCredentials) {
+    return { ok: false, reason: auth.currentUser ? "offline" : "signed-out" };
+  }
 
   const { username, password } = offlineSessionCredentials;
   try {
@@ -82,18 +113,19 @@ export async function ensureOnlineSession() {
     const gymId = snap?.exists() ? snap.data().gym_id ?? null : null;
     await localInvoke("captureCredential", { uid: cred.user.uid, username, gymId, password }).catch(() => {});
     offlineSessionCredentials = null;
-    return true;
+    return { ok: true };
   } catch (err) {
-    // Still offline: keep the credentials and try again next cycle. Any
-    // OTHER failure (the password was changed centrally, the account was
-    // disabled) means these credentials will never work again — drop them
-    // rather than retrying a rejected password every cycle, which is how
-    // accounts get locked out for repeated failed attempts.
-    if (err?.code !== "auth/network-request-failed") {
-      console.error("Couldn't upgrade the offline session to an online one:", err?.code || err);
-      offlineSessionCredentials = null;
+    // Still offline: keep the credentials and try again next cycle.
+    if (err?.code === "auth/network-request-failed") {
+      return { ok: false, reason: "offline" };
     }
-    return false;
+    // Anything else (the password was changed centrally, the account was
+    // disabled) means these credentials will never work — drop them rather
+    // than retrying a rejected password every cycle, which is how accounts
+    // get locked out for repeated failed attempts.
+    console.error("Couldn't upgrade the offline session to an online one:", err?.code || err);
+    offlineSessionCredentials = null;
+    return { ok: false, reason: "rejected" };
   }
 }
 

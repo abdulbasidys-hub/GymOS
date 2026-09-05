@@ -195,13 +195,21 @@ export function AuthProvider({ children }) {
       // succeeds there is no point running the cycle: it would just
       // generate a wall of permission-denied errors and report failure for
       // a reason the user can do nothing about.
-      const online = await ensureOnlineSession();
-      if (!online) {
+      const session = await ensureOnlineSession();
+      if (!session.ok) {
         setBranchSyncState((s) => ({
           ...s,
           [gymId]: { ...s[gymId], status: "idle" },
         }));
-        return { ok: false, errors: ["waiting for a connection to sign in again"] };
+        // "rejected"/"signed-out" is NOT something waiting will fix — the
+        // session is dead and only signing in again can restore it. Saying
+        // "will retry" there would be a lie that leaves the desk waiting
+        // forever for a sync that can never happen.
+        const reason =
+          session.reason === "rejected" || session.reason === "signed-out"
+            ? "your session has expired — sign out and sign in again to sync"
+            : "no connection yet — nothing has been lost, it will sync when you are back online";
+        return { ok: false, errors: [reason] };
       }
       // pushPendingChanges never throws on a per-record rejection — it
       // deliberately keeps going so one bad row can't strand a day of

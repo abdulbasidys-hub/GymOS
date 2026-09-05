@@ -146,7 +146,12 @@ async function pushEntityTable(table, rows, errors) {
 async function pushMembers(gymId, members, gymPrefix, errors) {
   let failed = 0;
   for (const member of members) {
-    let branch = "member";
+    // Starts as "member lookup" so a failure on the getDoc below — which
+    // happens BEFORE we know whether this is a create or an edit — names
+    // the read that actually failed instead of a bare "member". A denial
+    // here means the session cannot read at all, which is a very different
+    // problem from a rejected write.
+    let branch = "member lookup";
     try {
       const memberRef = doc(db, "members", member.id);
       const existing = await getDoc(memberRef);
