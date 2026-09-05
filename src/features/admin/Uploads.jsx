@@ -12,6 +12,11 @@ import { formatDateTime } from "../../lib/helpers";
 // Publishes the desktop installer and the two role guides for customers to
 // fetch themselves (features/DownloadsPage.jsx is what they see).
 //
+// Called "Uploads" here and "Downloads" there on purpose — it is the same
+// files from the two opposite ends. The super admin puts them up; the gym
+// takes them down. Naming this page for what the ADMIN does to it is what
+// makes the sidebar read correctly.
+//
 // Each entry can be published EITHER by uploading the file to Firebase
 // Storage OR by pasting a link to it somewhere else, and the choice is per
 // entry on purpose. The guides are small PDFs and belong in Storage. The
@@ -188,7 +193,7 @@ function KindEditor({ kind, entry, onChanged }) {
   );
 }
 
-export default function Downloads() {
+export default function Uploads() {
   const [entries, setEntries] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -208,10 +213,10 @@ export default function Downloads() {
   return (
     <>
       <div className="page-header">
-        <h1>Downloads</h1>
+        <h1>Uploads</h1>
         <p>
-          What owners and receptionists can download for themselves after signing in. Owners see the
-          app and the owner&rsquo;s guide; receptionists see the app and the front-desk guide.
+          Files you publish for gyms to download themselves after signing in. Owners see the app and
+          the owner&rsquo;s guide; receptionists see the app and the front-desk guide.
         </p>
       </div>
 
