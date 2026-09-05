@@ -50,7 +50,10 @@ function prepareFactDoc(table, row) {
 // through that mapper. The web path has always called stripUndefined
 // (src/data/members.js); this path simply never did.
 function prepareEntityDoc(table, row) {
-  const { sync_status, ...rest } = row;
+  // remote_created is bookkeeping local to this device — it must never be
+  // written to Firestore, where it would be a meaningless extra field (and
+  // on a member EDIT would land outside the rules' allow-list).
+  const { sync_status, remote_created, ...rest } = row;
   return stripUndefined(rowToTimestamps(table, rest, ENTITY_TIMESTAMP_FIELDS));
 }
 
@@ -167,27 +170,32 @@ async function pushEntityTable(table, rows, errors) {
 async function pushMembers(gymId, members, gymPrefix, errors) {
   let failed = 0;
   for (const member of members) {
-    // Starts as "member lookup" so a failure on the getDoc below — which
-    // happens BEFORE we know whether this is a create or an edit — names
-    // the read that actually failed instead of a bare "member". A denial
-    // here means the session cannot read at all, which is a very different
-    // problem from a rejected write.
-    let branch = "member lookup";
+    // Overwritten immediately below once remote_created says which path
+    // this member takes; only a throw before that point leaves it as-is.
+    let branch = "member";
     try {
       const memberRef = doc(db, "members", member.id);
-      const existing = await getDoc(memberRef);
-      // Which branch we're in, so a denial says WHICH write was rejected —
-      // "member create" and "member edit" are governed by entirely different
-      // rules (create needs isReceptionist + an operational gym; edit is
-      // additionally restricted to a bio-data allow-list), and without this
-      // both surface as one indistinguishable "permission-denied".
-      branch = existing.exists() ? "member edit" : "member create";
 
-      if (existing.exists()) {
-        const remoteNo = existing.data().member_no;
-        if (remoteNo && remoteNo !== member.member_no) {
-          await localInvoke("applyMemberRenumber", { memberId: member.id, memberNo: remoteNo });
-        } else {
+      // Whether this member exists in Firestore is answered LOCALLY, from
+      // members.remote_created, not with a getDoc.
+      //
+      // The getDoc was the actual cause of offline-registered members never
+      // syncing: reading members/{id} for a document that does not exist yet
+      // is DENIED, because the members read rule dereferences
+      // resource.data.gym_id and `resource` is null for a missing document.
+      // The rule errors, the read throws permission-denied, and the push
+      // gave up before attempting a single write — which is why the log
+      // said "member lookup ... permission-denied" while the create itself
+      // was perfectly permitted.
+      //
+      // The flag is also strictly better than the read it replaces: no
+      // round trip per pending member, and no dependence on how rules
+      // handle a null resource.
+      const existsRemotely = member.remote_created === 1 || member.remote_created === true;
+      branch = existsRemotely ? "member edit" : "member create";
+
+      if (existsRemotely) {
+        {
           // Send ONLY the bio fields firestore.rules actually permits on a
           // member update — an explicit allow-list, not "everything except
           // a couple of fields".

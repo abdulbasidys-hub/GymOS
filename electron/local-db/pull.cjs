@@ -230,8 +230,8 @@ function applyPulledMembersPage(db, { members }) {
     `INSERT INTO members (
       id, gym_id, member_no, name, phone, dob, gender, weight, height, date_joined,
       emergency_name, emergency_phone, email, address, custom_fields, active, created_at, actor_uid,
-      photo_url, sync_status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced')`
+      photo_url, remote_created, sync_status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'synced')`
   );
   const existsStmt = db.prepare("SELECT sync_status FROM members WHERE id = ?");
   // Used only on a UNIQUE(gym_id, member_no) violation — finds which local

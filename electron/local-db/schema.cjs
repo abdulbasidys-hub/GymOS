@@ -319,6 +319,27 @@ const MIGRATIONS = [
   // Storage path is stable per member (member_photos/{gym}/{member}) but the
   // download URL carries a token that changes on re-upload, so a plain
   // "do we have a row?" check would pin the first photo forever.
+  // version 7: members.remote_created — does this member exist in Firestore?
+  //
+  // The push used to answer that with a getDoc on members/{id}, which is
+  // DENIED for a member that does not exist yet: firestore.rules' members
+  // read rule dereferences resource.data.gym_id, and `resource` is null for
+  // a missing document, so the rule errors and the whole push fails before
+  // it attempts a single write. Every offline-registered member hit this;
+  // the log said "member lookup ... permission-denied" for exactly that
+  // reason.
+  //
+  // A local flag answers the same question with no network call, no rules
+  // dependency, and one less round trip per member. Set when a row arrives
+  // from Firestore (pull/bootstrap) and when a local create is confirmed
+  // pushed. 0 means "never been to the server", which is precisely what
+  // decides create-vs-edit.
+  (db) => {
+    db.exec(`ALTER TABLE members ADD COLUMN remote_created INTEGER NOT NULL DEFAULT 0;`);
+    // Anything already marked synced came from, or reached, Firestore.
+    db.exec(`UPDATE members SET remote_created = 1 WHERE sync_status = 'synced';`);
+  },
+
   (db) => {
     db.exec(`
       CREATE TABLE member_photos (

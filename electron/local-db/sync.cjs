@@ -74,6 +74,13 @@ function getPendingDeletes(db, { gymId }) {
 function markSynced(db, { table, ids }) {
   if (!ALL_TABLES[table]) throw new Error(`markSynced: "${table}" is not a syncable table.`);
   if (!ids || ids.length === 0) return;
+  // Reaching Firestore is exactly what remote_created records, so a
+  // confirmed member push sets it here too — otherwise an edit pushed
+  // before any pull would still look local-only on the next cycle.
+  if (table === "members") {
+    const q = ids.map(() => "?").join(", ");
+    db.prepare(`UPDATE members SET remote_created = 1 WHERE id IN (${q})`).run(...ids);
+  }
   const placeholders = ids.map(() => "?").join(", ");
   db.prepare(`UPDATE ${table} SET sync_status = 'synced' WHERE id IN (${placeholders})`).run(...ids);
 }
@@ -101,7 +108,7 @@ function getPendingCount(db, { gymId }) {
  *  different number than local computed — defensive resync, not the
  *  common case (see that file's own comment on why this can happen). */
 function applyMemberRenumber(db, { memberId, memberNo }) {
-  db.prepare("UPDATE members SET member_no = ?, sync_status = 'synced' WHERE id = ?").run(memberNo, memberId);
+  db.prepare("UPDATE members SET member_no = ?, remote_created = 1, sync_status = 'synced' WHERE id = ?").run(memberNo, memberId);
 }
 
 module.exports = {
