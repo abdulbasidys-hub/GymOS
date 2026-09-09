@@ -13,7 +13,27 @@
     <link rel="icon" type="image/png" href="/favicon-dark.png" media="(prefers-color-scheme: dark)" />
     <!-- Fallback for browsers that ignore media on <link rel=icon>. -->
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover lets the app paint edge to edge on notched
+         phones; every fixed bar below (the mobile top bar, the bottom tab
+         bar, the sheet-style modal) pads itself back out of the unsafe
+         area with env(safe-area-inset-*). maximum-scale is deliberately
+         NOT set — pinch-zoom stays available. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- Paints the phone's browser chrome (address bar / status bar) in
+         the app's own background colour, so the page doesn't sit inside a
+         differently-coloured frame. These two are the OS-preference
+         fallback for the first paint; src/theme.jsx rewrites the tag to
+         match the app's ACTUAL theme once React mounts, since the in-app
+         toggle can disagree with the OS. -->
+    <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+    <!-- Added to a phone's home screen, GymOS opens without browser
+         chrome — the demo and the day-to-day desk both look like an app
+         rather than a website. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="GymOS" />
     <title>GymOS</title>
     <!-- Applies the theme BEFORE the app bundle loads. Without this, a
          machine whose OS is set to dark paints one dark frame: index.css's

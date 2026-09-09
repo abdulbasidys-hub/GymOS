@@ -64,10 +64,16 @@ export default function DeskHome() {
           </div>
         </div>
 
+        {/* On a phone this becomes a round floating button above the tab
+            bar (see .sidebar__primary in the mobile shell block of
+            index.css), where there's no room for the words — hence the
+            label in its own span the CSS can hide, and the aria-label
+            carrying the same wording so the button is still announced
+            once the visible text is gone. */}
         <div className="sidebar__primary">
-          <Link className="btn btn--primary" to="/desk/register">
+          <Link className="btn btn--primary" to="/desk/register" aria-label="Register a new member">
             <IconPlus />
-            Register a new member
+            <span className="sidebar__primary-label">Register a new member</span>
           </Link>
         </div>
 

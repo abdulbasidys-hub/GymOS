@@ -13,6 +13,35 @@ function applyTheme(preference) {
   else root.setAttribute("data-theme", preference);
 }
 
+// On a phone, the browser paints its own address/status bar in whatever
+// <meta name="theme-color"> says — leave it alone and a dark-themed app
+// sits inside a white frame (or the reverse), which is the single most
+// "this is a website, not an app" tell during a demo. index.html ships two
+// media-scoped tags so the very first paint already matches the OS
+// preference; this replaces them with one unconditional tag matching the
+// theme actually showing, since the in-app toggle can disagree with the OS.
+// Values are the literal --bg of each theme (index.css) — read from the
+// tokens rather than hardcoded, so this can't drift if the palette moves.
+function applyThemeColor(effective) {
+  const bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+  if (!bg) return;
+  document
+    .querySelectorAll('meta[name="theme-color"][media]')
+    .forEach((el) => el.remove());
+  let meta = document.querySelector('meta[name="theme-color"]:not([media])');
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.setAttribute("name", "theme-color");
+    document.head.appendChild(meta);
+  }
+  meta.setAttribute("content", bg);
+  // iOS uses its own tag for the status bar text colour in a home-screen
+  // install; "black-translucent" is what keeps white text legible over a
+  // dark app, "default" (dark text) over a light one.
+  const status = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+  if (status) status.setAttribute("content", effective === "dark" ? "black-translucent" : "default");
+}
+
 export function ThemeProvider({ children }) {
   // Light is the default, not "system". A first-time visitor or a freshly
   // installed desk machine gets light regardless of what the OS is set to —
@@ -52,6 +81,12 @@ export function ThemeProvider({ children }) {
   }, []);
 
   const effective = preference === "system" ? (systemIsDark ? "dark" : "light") : preference;
+
+  // After applyTheme has set/removed data-theme (its effect runs first, in
+  // declaration order), so the computed --bg read inside is the new one.
+  useEffect(() => {
+    applyThemeColor(effective);
+  }, [effective]);
 
   const value = {
     preference, // "light" | "dark" | "system"

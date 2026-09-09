@@ -14,6 +14,7 @@ import { ThemeProvider } from "./theme";
 import { homePathFor } from "./lib/roles";
 import Logo from "./components/Logo";
 import CloseButton from "./components/CloseButton";
+import ActiveTabIntoView from "./components/ActiveTabIntoView";
 import LoginPage from "./features/LoginPage";
 import SetPasswordPage from "./features/SetPasswordPage";
 import DeskHome from "./features/desk/DeskHome";
@@ -105,6 +106,11 @@ export default function App() {
       {window.gymOS?.isElectron && <CloseButton />}
       <AuthProvider>
         <Router>
+          {/* Keeps the phone tab bar's active entry on screen for the
+              roles whose nav is too long to fit across it (see the
+              component). Inside the router — it reads the location —
+              and outside <Routes> so it survives every navigation. */}
+          <ActiveTabIntoView />
           <Routes>
             <Route
               path="/desk/*"
