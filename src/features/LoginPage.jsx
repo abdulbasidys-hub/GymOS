@@ -3,7 +3,9 @@ import { Navigate, Link } from "react-router-dom";
 import { useAuth } from "../auth";
 import { signInWithUsername } from "../data";
 import { homePathFor } from "../lib/roles";
+import { isInstalledApp } from "../lib/standalone";
 import Logo from "../components/Logo";
+import InstallAppPrompt from "../components/InstallAppPrompt";
 
 function UserIcon() {
   return (
@@ -119,13 +121,15 @@ export default function LoginPage() {
     <div className="login">
       <form className="login__card" onSubmit={submit}>
         {/* The brand lockup doubles as the way back to the marketing site
-            on the web build. Not a link under Electron: there is no
-            marketing site there (App.jsx routes "/" straight to this page
-            for the desktop app), so a link would either dead-end or bounce
-            the user right back here. `brandLockup` is rendered identically
-            either way — only the wrapper differs — so the layout, the
-            measured title font size, and the tagline are untouched. */}
-        {window.gymOS?.isElectron ? (
+            when this page is being viewed in a browser. Not a link in an
+            INSTALLED app — the desktop build or the PWA on a phone's home
+            screen (see lib/standalone.js): there is no marketing site in
+            either (App.jsx routes "/" straight to this page for them), so
+            a link would either dead-end or bounce the user right back
+            here. `brandLockup` is rendered identically either way — only
+            the wrapper differs — so the layout, the measured title font
+            size, and the tagline are untouched. */}
+        {isInstalledApp() ? (
           <div className="login__header">{brandLockup}</div>
         ) : (
           <Link to="/" className="login__header login__header--link" aria-label="GymOS home">
@@ -170,6 +174,8 @@ export default function LoginPage() {
         </button>
 
         <p className="login__footer">GymOS by Nobody Brothers</p>
+
+        <InstallAppPrompt />
       </form>
     </div>
   );

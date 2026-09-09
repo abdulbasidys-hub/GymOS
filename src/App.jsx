@@ -12,6 +12,7 @@ import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router
 import { AuthProvider, useAuth } from "./auth";
 import { ThemeProvider } from "./theme";
 import { homePathFor } from "./lib/roles";
+import { isInstalledApp } from "./lib/standalone";
 import Logo from "./components/Logo";
 import CloseButton from "./components/CloseButton";
 import ActiveTabIntoView from "./components/ActiveTabIntoView";
@@ -68,17 +69,17 @@ function RequireRole({ role, children }) {
   return children;
 }
 
-// The homepage. Electron has no marketing site to show — it's a locally
-// installed app for existing customers, so "/" stays the login page there
-// exactly as before (that comment up top — "the login page IS the
-// homepage" — is still true, just Electron-only now). The web build gets
-// a real public marketing homepage instead, with sign-in moved to its own
-// /login route.
+// The homepage. An INSTALLED app has no marketing site to show — it's the
+// gym's own application, opened to be worked in, so "/" is the login page
+// there (that comment up top — "the login page IS the homepage" — is still
+// true, now for the desktop build and the installed PWA alike; see
+// lib/standalone.js). A browser visiting the site gets the real public
+// marketing homepage instead, with sign-in on its own /login route.
 function Home() {
   const { status, role, account } = useAuth();
   if (status === "loading") return <Splash />;
   if (status === "signedOut") {
-    return window.gymOS?.isElectron ? <LoginPage /> : <MarketingHome />;
+    return isInstalledApp() ? <LoginPage /> : <MarketingHome />;
   }
   if (status === "noAccount") return <NoAccount />;
   if (account?.must_change_password) return <SetPasswordPage />;
@@ -99,6 +100,22 @@ function Home() {
 // for the Electron build only; the web build keeps BrowserRouter and its
 // cleaner URLs unchanged.
 const Router = window.gymOS?.isElectron ? HashRouter : BrowserRouter;
+
+// The three marketing pages, kept out of the installed app.
+//
+// The PWA's scope is the whole origin (public/manifest.webmanifest), which
+// it has to be — anything narrower would push /desk and /owner out of the
+// app and back into a browser tab. The cost of that is that a /pricing
+// link tapped anywhere on the phone can be handed to the installed app to
+// open. This sends those routes to the login screen instead, so the
+// marketing site stays where it belongs: in a browser.
+//
+// Deliberately NOT applied to Electron-only reasoning — isInstalledApp()
+// covers the desktop build too, where these routes were never reachable in
+// any meaningful way (HashRouter, no address bar, no links to them).
+function PublicSite({ children }) {
+  return isInstalledApp() ? <Navigate to="/login" replace /> : children;
+}
 
 export default function App() {
   return (
@@ -132,9 +149,9 @@ export default function App() {
                 is "ready" (see its own top-of-component check), so this
                 route needs no RequireRole wrapper. */}
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/product" element={<Product />} />
-            <Route path="/pricing" element={<Pricing />} />
-            <Route path="/contact" element={<Contact />} />
+            <Route path="/product" element={<PublicSite><Product /></PublicSite>} />
+            <Route path="/pricing" element={<PublicSite><Pricing /></PublicSite>} />
+            <Route path="/contact" element={<PublicSite><Contact /></PublicSite>} />
             <Route path="*" element={<Home />} />
           </Routes>
         </Router>

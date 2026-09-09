@@ -34,6 +34,14 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="GymOS" />
+    <!-- Makes the app installable: name, icons, the standalone display
+         mode, and start_url — which is "/login", so launching the
+         installed app opens the sign-in screen and never the marketing
+         site. src/lib/standalone.js is the backstop for URLs that arrive
+         some other way. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- iOS ignores the manifest's icons and reads only this. -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>GymOS</title>
     <!-- Applies the theme BEFORE the app bundle loads. Without this, a
          machine whose OS is set to dark paints one dark frame: index.css's

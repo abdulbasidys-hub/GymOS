@@ -1028,6 +1028,41 @@ a, button, select, summary, label, [role="button"],
 .login__title-accent { color: var(--accent); }
 .login__tagline { color: var(--text-secondary); font-size: 11px; letter-spacing: -0.01em; line-height: 1.3; white-space: nowrap; }
 .login__footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 8px; }
+/* "Install GymOS on this device" (components/InstallAppPrompt.jsx), and
+   its iOS counterpart, which is a line of instructions rather than a
+   button. Sits below the sign-off, quiet by design: it is an offer, not a
+   step in signing in, and the person who has already installed the app
+   never sees it at all. Deliberately not a .btn — a second bordered
+   control under the green Sign in button would read as a competing
+   action. */
+.install-app {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  margin-top: 4px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+.install-app svg { flex-shrink: 0; }
+.install-app:hover { color: var(--accent); }
+/* The iOS variant is a <p>, not a button — nothing to click, since Safari
+   only allows installing from its own Share menu. */
+.install-app--hint { cursor: default; align-items: flex-start; text-align: left; }
+.install-app--hint svg { margin-top: 2px; }
+.install-app--hint:hover { color: var(--muted); }
+.install-app--hint strong { color: var(--text); font-weight: 600; }
 .login__error {
   background: rgba(var(--bad-rgb), 0.1);
   border: 1px solid rgba(var(--bad-rgb), 0.3);
