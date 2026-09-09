@@ -4,17 +4,6 @@ import App from "./App";
 import "@fontsource-variable/inter/wght.css";
 import "./index.css";
 
-// Chrome decides a site is installable and fires `beforeinstallprompt`
-// once, early — routinely before React has mounted the login screen. The
-// event is only replayable if it was cancelled when it fired, so it has to
-// be caught here, at the very top of the bundle, and stashed for
-// components/InstallAppPrompt.jsx to find. Miss it and the "Install GymOS
-// on this device" button simply never appears, with nothing to debug.
-window.addEventListener("beforeinstallprompt", (e) => {
-  e.preventDefault();
-  window.__gymosInstallPrompt = e;
-});
-
 // Registers public/sw.js, which is what makes the app installable at all:
 // Chrome will not offer to install a site without a service worker that
 // has a fetch handler, however complete its manifest is.

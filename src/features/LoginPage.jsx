@@ -5,7 +5,6 @@ import { signInWithUsername } from "../data";
 import { homePathFor } from "../lib/roles";
 import { isInstalledApp } from "../lib/standalone";
 import Logo from "../components/Logo";
-import InstallAppPrompt from "../components/InstallAppPrompt";
 
 function UserIcon() {
   return (
@@ -174,8 +173,6 @@ export default function LoginPage() {
         </button>
 
         <p className="login__footer">GymOS by Nobody Brothers</p>
-
-        <InstallAppPrompt />
       </form>
     </div>
   );

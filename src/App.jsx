@@ -16,6 +16,7 @@ import { isInstalledApp } from "./lib/standalone";
 import Logo from "./components/Logo";
 import CloseButton from "./components/CloseButton";
 import ActiveTabIntoView from "./components/ActiveTabIntoView";
+import ResponsiveTables from "./components/ResponsiveTables";
 import LoginPage from "./features/LoginPage";
 import SetPasswordPage from "./features/SetPasswordPage";
 import DeskHome from "./features/desk/DeskHome";
@@ -128,6 +129,10 @@ export default function App() {
               component). Inside the router — it reads the location —
               and outside <Routes> so it survives every navigation. */}
           <ActiveTabIntoView />
+          {/* Stamps every table with what index.css needs to fit it
+              onto a phone — see the component. Same placement and
+              reasoning as ActiveTabIntoView above. */}
+          <ResponsiveTables />
           <Routes>
             <Route
               path="/desk/*"

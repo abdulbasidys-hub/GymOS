@@ -399,6 +399,13 @@ select:focus {
   white-space: nowrap;
 }
 .sidebar__actions { display: flex; align-items: center; gap: 8px; }
+/* Smaller than the app's general icon-button size. This row is chrome that
+   sits beside the account name all day and is used a few times a session —
+   at the standard 36px the theme/sync/sign-out cluster reads as the
+   heaviest thing in the shell, which is exactly backwards. */
+.sidebar__actions .btn--icon,
+.sidebar__actions .theme-toggle { width: 30px; height: 30px; }
+.sidebar__actions .btn--icon svg { width: 14px; height: 14px; }
 /* Sign out reads as a distinct, slightly more consequential action than
    the theme/settings icons beside it — same icon-button chrome at rest,
    a warning tint only on hover/focus so it doesn't shout at rest. */
@@ -503,7 +510,14 @@ select:focus {
     border-radius: 0;
   }
   .sidebar__identity { display: none; }
-  .sidebar__actions { gap: 8px; }
+  .sidebar__actions { gap: 6px; }
+  /* Deliberately under the 44px touch target the rest of the phone layout
+     holds to. These are the top bar's own controls, hit occasionally and
+     with the whole width of the bar as breathing room around them, and
+     keeping them full size crowded the gym name out of the header. */
+  .sidebar__actions .btn--icon,
+  .sidebar__actions .theme-toggle { width: 32px; height: 32px; }
+  .sidebar__actions .btn--icon svg { width: 15px; height: 15px; }
 
   /* -- bottom tab bar --
      Fixed to the bottom of the viewport (nothing in the shell carries a
@@ -1028,41 +1042,6 @@ a, button, select, summary, label, [role="button"],
 .login__title-accent { color: var(--accent); }
 .login__tagline { color: var(--text-secondary); font-size: 11px; letter-spacing: -0.01em; line-height: 1.3; white-space: nowrap; }
 .login__footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 8px; }
-/* "Install GymOS on this device" (components/InstallAppPrompt.jsx), and
-   its iOS counterpart, which is a line of instructions rather than a
-   button. Sits below the sign-off, quiet by design: it is an offer, not a
-   step in signing in, and the person who has already installed the app
-   never sees it at all. Deliberately not a .btn — a second bordered
-   control under the green Sign in button would read as a competing
-   action. */
-.install-app {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  width: 100%;
-  margin-top: 4px;
-  padding: 10px 12px;
-  font: inherit;
-  font-size: 12.5px;
-  line-height: 1.4;
-  text-align: center;
-  color: var(--muted);
-  background: none;
-  border: none;
-  border-top: 1px solid var(--border);
-  border-radius: 0;
-  cursor: pointer;
-  transition: color var(--duration-fast) var(--ease-standard);
-}
-.install-app svg { flex-shrink: 0; }
-.install-app:hover { color: var(--accent); }
-/* The iOS variant is a <p>, not a button — nothing to click, since Safari
-   only allows installing from its own Share menu. */
-.install-app--hint { cursor: default; align-items: flex-start; text-align: left; }
-.install-app--hint svg { margin-top: 2px; }
-.install-app--hint:hover { color: var(--muted); }
-.install-app--hint strong { color: var(--text); font-weight: 600; }
 .login__error {
   background: rgba(var(--bad-rgb), 0.1);
   border: 1px solid rgba(var(--bad-rgb), 0.3);
@@ -1104,6 +1083,25 @@ input:where(:not([type="checkbox"]):not([type="radio"])), select {
   transition: border-color var(--duration-fast) var(--ease-standard);
 }
 input:where(:not([type="checkbox"]):not([type="radio"])):focus, select:focus { border-color: var(--accent); }
+
+/* The masked characters in a password field.
+
+   Left to the browser, these are heavy filled bullets set at normal
+   letter-spacing, which run together into a black smear — the one place
+   in the app where the default control chrome shows through everything
+   else here is tuned. `circle` is a lighter, smaller glyph than the
+   default disc, and the tracking separates the characters so the field
+   reads as a countable row of marks instead of a solid block.
+
+   -webkit-text-security is prefixed but is not WebKit-only any more —
+   Chrome, Edge, Safari and Firefox all implement it. Anywhere that
+   doesn't, the field keeps the browser's own masking and still picks up
+   the tracking, so the fallback is "better than before", not "broken". */
+input[type="password"] {
+  -webkit-text-security: circle;
+  text-security: circle;
+  letter-spacing: 0.24em;
+}
 select {
   cursor: pointer;
   appearance: none;
@@ -2369,6 +2367,122 @@ select option { background: var(--surface); color: var(--text); }
   .table th, .table td { padding: 13px 10px; font-size: 13.5px; }
   .table th { font-size: 11px; }
 
+  /* ---- tables on a phone ----
+     Two shapes, chosen per table by components/ResponsiveTables.jsx from
+     its column count and stamped on as data-fit / data-stack. Everything
+     below is inert without those attributes, so a table that somehow
+     isn't stamped falls back to the plain horizontal scroll above. */
+
+  /* Four columns or fewer: still a real table, just made to fit. Cells
+     wrap rather than scrolling sideways, and the row-number column goes —
+     it's a display artefact, and it's the cheapest column to lose. A
+     member list stays scannable many rows at a time, which is the whole
+     reason not to stack this one. */
+  .table[data-fit] {
+    display: table;
+    white-space: normal;
+    overflow-x: visible;
+    /* No swipe, so no shadow hinting at one. */
+    background-image: none;
+  }
+  .table[data-fit] th, .table[data-fit] td { padding: 12px 8px; }
+  .table[data-fit] [data-label="#"] { display: none; }
+  /* Wrapping is what makes this mode fit, but a phone number broken
+     across two lines stops looking like one number. It is also the
+     narrowest column, so holding it whole costs the others little. */
+  .table[data-fit] .phone-copy { white-space: nowrap; }
+
+  /* Five or more: no tightening fits seven columns across a phone, so the
+     row stops being a row. Each becomes a block — the identifying column
+     as its heading, the rest as label/value lines under it — which is the
+     same information in the same order, read down instead of across. */
+  .table[data-stack] {
+    display: block;
+    white-space: normal;
+    overflow-x: visible;
+    background-image: none;
+  }
+  /* The headings move into the cells (via data-label below), so the header
+     row has nothing left to say. */
+  .table[data-stack] thead { display: none; }
+  .table[data-stack] tbody { display: block; }
+  /* A flex column rather than a plain block, purely so the heading can be
+     pulled to the top with `order` below. The identifying column is not
+     always the first one — a payments row leads with the member number —
+     and a block that opens with "MEMBER NO. ITF-0042" and only then says
+     whose payment it is has buried the one thing being looked for. */
+  .table[data-stack] tr {
+    display: flex;
+    flex-direction: column;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .table[data-stack] tr:last-child { border-bottom: none; }
+  .table[data-stack] tbody tr:hover td { background: none; }
+  .table[data-stack] td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 3px 0;
+    border-bottom: none;
+    font-size: 13.5px;
+    /* Values line up against the right edge, labels against the left —
+       the same two-column read the table had, one row at a time. */
+    text-align: right;
+  }
+  .table[data-stack] td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: left;
+  }
+  /* The row's own heading: full width, left aligned, no label of its own —
+     "Iron Temple Fitness" reads as the title of the block, not as the
+     answer to "Name:". */
+  .table[data-stack] td[data-primary] {
+    order: -1;
+    display: block;
+    text-align: left;
+    font-size: 15px;
+    font-weight: 700;
+    padding-bottom: 6px;
+  }
+  .table[data-stack] td[data-primary]::before { display: none; }
+  /* Generated for display and meaningless once the rows aren't numbered
+     down a column any more. */
+  .table[data-stack] td[data-label="#"] { display: none; }
+  /* The expander's caret column: a lone glyph on its own line reads as a
+     stray character. The chevron on the heading below replaces it. */
+  .table[data-stack] .row__caret { display: none; }
+  .table[data-stack] tr.row--expandable td[data-primary] {
+    position: relative;
+    padding-right: 20px;
+  }
+  .table[data-stack] tr.row--expandable td[data-primary]::after {
+    content: "›";
+    position: absolute;
+    right: 2px;
+    top: 0;
+    color: var(--muted);
+    font-weight: 400;
+    font-size: 18px;
+  }
+  /* An ExpandableRow's detail row is one cell spanning what used to be the
+     whole table; it carries no column and gets no label. */
+  .table[data-stack] tr.row__expanded { padding: 0 0 12px; border-bottom: none; }
+  .table[data-stack] tr.row__expanded td {
+    display: block;
+    text-align: left;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+  }
+  .table[data-stack] tr.row__expanded td::before { display: none; }
+
   /* A row of stat cards that never wraps on desktop (Dashboard's 6, the
      affiliate's 3) would otherwise squeeze every card down to a sliver.
      The hairline divider-per-cell only reads correctly side by side — at
@@ -2447,6 +2561,32 @@ select option { background: var(--surface); color: var(--text); }
   .field__control input { padding: 12px 44px; }
   .username-combo__prefix { padding: 0 10px; font-size: 15px; }
   .row2, .row2--even { gap: 10px; }
+
+  /* ---- the register-a-member form on a phone ----
+     It is the longest form in the app — five paired rows, a photo, two
+     plan pickers — and stacking every pair turned it into roughly a
+     dozen full-width fields to scroll past while somebody stands at the
+     desk waiting. The pairs were designed as pairs (weight/height,
+     gender/date of birth, name/phone), so they stay pairs here, which
+     roughly halves the length of the form. Scoped to .form-layout so the
+     modals that also use .row2 keep stacking — a bottom sheet is
+     narrower than the page and has no length problem to solve. */
+  .form-layout .row2, .form-layout .row2--even { grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+  /* Each field is now half of a narrow screen, so the labels are what
+     have to give: "Emergency contact phone" over a 170px input wraps to
+     two lines otherwise, and every row in the form ends up a different
+     height. */
+  .form-layout .row2 .field span { font-size: 12px; line-height: 1.35; }
+  .form-layout { gap: 18px; }
+  .form-layout__main, .form-layout__side { gap: 18px; }
+  .form-layout .card + .card { margin-top: 0; }
+  .form-layout__footer { margin-top: 0; padding-top: 16px; gap: 10px; flex-direction: column-reverse; }
+  /* Register is the action; Cancel sits under it rather than beside it,
+     so the primary button is the one under the thumb. */
+  .form-layout__footer .btn { width: 100%; text-align: center; }
+  /* The browser's own file control is wider than a phone screen and
+     renders as raw system chrome next to everything else here. */
+  .form-layout input[type="file"] { width: 100%; font-size: 13px; padding: 10px; }
   .detail-grid { gap: 18px; }
 
   /* A heading row with controls (search, filter, an action) has no room to
@@ -2569,6 +2709,14 @@ select option { background: var(--surface); color: var(--text); }
   }
 }
 
+/* Two-up paired fields (see .form-layout above) need roughly 165px a
+   side to stay usable — a date input renders "mm/dd/yyyy" plus a calendar
+   button and simply stops being readable below that. Under 380px the
+   register form goes back to one field per row. */
+@media (max-width: 380px) {
+  .form-layout .row2, .form-layout .row2--even { grid-template-columns: 1fr; }
+}
+
 /* ---- the narrowest phones ----
    320-360px (an iPhone SE, most budget Androids). The top bar is the only
    thing that actually runs out of room: brand plus four account icons.
@@ -2578,7 +2726,6 @@ select option { background: var(--surface); color: var(--text); }
 @media (max-width: 360px) {
   .sidebar { padding-left: 12px; padding-right: 12px; gap: 8px; }
   .sidebar__actions { gap: 6px; }
-  .sidebar__actions .btn--icon, .sidebar__actions .theme-toggle { width: 38px; height: 38px; }
   .topbar__brand-name { font-size: 16px; }
   .topbar__brand-gym { font-size: 11px; }
   .page { padding: 20px 14px; }

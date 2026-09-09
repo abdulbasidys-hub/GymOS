@@ -1,37 +1,31 @@
-import { useState } from "react";
-import { Routes, Route, NavLink, Link } from "react-router-dom";
+import { Routes, Route, NavLink, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth";
 import Logo from "../../components/Logo";
 import LockedScreen from "../../components/LockedScreen";
-import Modal from "../../components/Modal";
-import ChangePasswordForm from "../../components/ChangePasswordForm";
 import ThemeToggle from "../../components/ThemeToggle";
-import { IconCheckCircle, IconPeople, IconChart, IconPlus, IconDownload, IconLogout, IconSync } from "../../components/NavIcons";
+import { IconCheckCircle, IconPeople, IconChart, IconPlus, IconDownload, IconLogout, IconSync, IconGear } from "../../components/NavIcons";
 import CheckIn from "./CheckIn";
 import DeskMembers from "./DeskMembers";
 import DeskFinances from "./DeskFinances";
 import RegisterMember from "./RegisterMember";
 import MemberProfile from "../MemberProfile";
 import DownloadsPage from "../DownloadsPage";
-
-function GearIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
-    </svg>
-  );
-}
+import DeskSettings from "./DeskSettings";
 
 const NAV = [
   { to: "/desk", end: true, label: "Check-in", Icon: IconCheckCircle },
   { to: "/desk/members", label: "Members", Icon: IconPeople },
   { to: "/desk/finances", label: "Finances", Icon: IconChart },
   { to: "/desk/downloads", label: "Downloads", Icon: IconDownload },
+  // A nav destination rather than a gear in the header — see
+  // DeskSettings.jsx. On a phone the top bar has room for the gym's
+  // name or another icon, not both, and the nav bar has the space.
+  { to: "/desk/settings", label: "Settings", Icon: IconGear },
 ];
 
 // Milestone 3 (BUILD.md §15) — the sync icon-button's title/aria-label.
-// Local, not shared: same small-duplication precedent as GearIcon above.
+// Local, not shared: the same small-duplication precedent the other
+// role shells follow for their own copy of this.
 function syncLabel({ syncStatus, lastSyncedAt, pendingCount }) {
   if (syncStatus === "syncing") return "Syncing…";
   if (syncStatus === "error") return "Sync failed — will retry automatically";
@@ -42,7 +36,7 @@ function syncLabel({ syncStatus, lastSyncedAt, pendingCount }) {
 
 export default function DeskHome() {
   const { account, gym, signOut, isLocked, syncStatus, lastSyncedAt, pendingCount, syncNow } = useAuth();
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const { pathname } = useLocation();
 
   // A locked/suspended gym serves no operational data (BUILD.md §11) — the
   // rules refuse it server-side; this is the friendly client-side mirror.
@@ -50,6 +44,8 @@ export default function DeskHome() {
   // is past its grace period (BUILD.md §13's forward-only-clock self-lock)
   // — both cases are folded into isLocked by AuthProvider (src/auth.jsx).
   if (isLocked) return <LockedScreen />;
+
+  const onRegisterPage = pathname.startsWith("/desk/register");
 
   return (
     <div className="shell">
@@ -69,13 +65,20 @@ export default function DeskHome() {
             index.css), where there's no room for the words — hence the
             label in its own span the CSS can hide, and the aria-label
             carrying the same wording so the button is still announced
-            once the visible text is gone. */}
-        <div className="sidebar__primary">
-          <Link className="btn btn--primary" to="/desk/register" aria-label="Register a new member">
-            <IconPlus />
-            <span className="sidebar__primary-label">Register a new member</span>
-          </Link>
-        </div>
+            once the visible text is gone.
+
+            Hidden on the registration page itself: as a floating button it
+            sits over the bottom-right of the page, which on that page is
+            the form's own Cancel/Register buttons — a shortcut covering
+            the thing it is a shortcut to. */}
+        {!onRegisterPage && (
+          <div className="sidebar__primary">
+            <Link className="btn btn--primary" to="/desk/register" aria-label="Register a new member">
+              <IconPlus />
+              <span className="sidebar__primary-label">Register a new member</span>
+            </Link>
+          </div>
+        )}
 
         <nav className="sidebar__nav">
           {NAV.map((n) => (
@@ -117,15 +120,6 @@ export default function DeskHome() {
               )}
               <button
                 type="button"
-                className="btn btn--icon"
-                onClick={() => setSettingsOpen(true)}
-                title="Settings"
-                aria-label="Settings"
-              >
-                <GearIcon />
-              </button>
-              <button
-                type="button"
                 className="btn btn--icon sidebar__signout"
                 onClick={signOut}
                 title="Sign out"
@@ -145,15 +139,12 @@ export default function DeskHome() {
             <Route path="members" element={<DeskMembers />} />
             <Route path="finances" element={<DeskFinances />} />
             <Route path="downloads" element={<DownloadsPage />} />
+            <Route path="settings" element={<DeskSettings />} />
             <Route path="register" element={<RegisterMember />} />
             <Route path="member/:memberId" element={<MemberProfile />} />
           </Routes>
         </main>
       </div>
-
-      <Modal open={settingsOpen} onClose={() => setSettingsOpen(false)} title="Settings">
-        <ChangePasswordForm />
-      </Modal>
     </div>
   );
 }
