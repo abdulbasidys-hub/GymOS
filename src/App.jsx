@@ -19,6 +19,7 @@ import ActiveTabIntoView from "./components/ActiveTabIntoView";
 import ResponsiveTables from "./components/ResponsiveTables";
 import LoginPage from "./features/LoginPage";
 import SetPasswordPage from "./features/SetPasswordPage";
+import SuspendedScreen from "./components/SuspendedScreen";
 import DeskHome from "./features/desk/DeskHome";
 import OwnerDashboard from "./features/owner/OwnerDashboard";
 import AdminDashboard from "./features/admin/AdminDashboard";
@@ -65,6 +66,12 @@ function RequireRole({ role, children }) {
   // protected URL while signed out wants the sign-in form, not marketing.
   if (status === "signedOut") return <Navigate to="/login" replace />;
   if (status === "noAccount") return <NoAccount />;
+  // Before must_change_password, and before the role check: a suspended
+  // account gets no further into the app for any reason, not even to set a
+  // password. `=== false` (not falsy) on purpose — an account record
+  // predating this field has no `active` at all and must stay usable, which
+  // is the same default firestore.rules' notSuspended() applies.
+  if (account?.active === false) return <SuspendedScreen />;
   if (account?.must_change_password) return <SetPasswordPage />;
   if (userRole !== role) return <Navigate to={homePathFor(userRole)} replace />;
   return children;
@@ -83,6 +90,7 @@ function Home() {
     return isInstalledApp() ? <LoginPage /> : <MarketingHome />;
   }
   if (status === "noAccount") return <NoAccount />;
+  if (account?.active === false) return <SuspendedScreen />;
   if (account?.must_change_password) return <SetPasswordPage />;
   return <Navigate to={homePathFor(role)} replace />;
 }

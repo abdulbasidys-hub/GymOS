@@ -48,10 +48,49 @@ export async function setOwnerSubscription(ownerUid, gymIds, { expiryDate, grace
     grace_hours: graceHours,
     last_verified_at: serverTimestamp(),
     locked: false,
+    // Any real extension ends a free trial, whether it came from a plan or
+    // a hand-picked date — this is the moment a trial becomes a customer.
+    trial: false,
     plan_id: planId,
     plan_name: planName,
   });
   await fanOut(ownerUid, gymIds, patch).commit();
+}
+
+/**
+ * Start a free trial for a brand-new owner — the promotional "try it before
+ * you buy it" path (NewGym.jsx). Identical plumbing to setOwnerSubscription
+ * above, with two differences that matter:
+ *
+ *   - `trial: true` marks it, so every screen can say "Free trial" instead
+ *     of showing it as a bought subscription, and so the platform's revenue
+ *     figures are never polluted — a trial deliberately records NO platform
+ *     payment and NO affiliate commission, because no money changed hands.
+ *   - the expiry is measured in whole MONTHS from today, by calendar, so a
+ *     trial started on the 3rd ends on the 3rd.
+ *
+ * When the trial runs out the gym locks exactly like any other lapsed
+ * subscription (logic/license.js doesn't care how the expiry got there),
+ * and the super admin converts it to a paid plan from the normal
+ * subscription screen, which clears the trial flag.
+ */
+export async function startFreeTrial(ownerUid, gymIds, months) {
+  const expiryDate = new Date();
+  expiryDate.setMonth(expiryDate.getMonth() + Number(months));
+  expiryDate.setHours(23, 59, 59, 999);
+
+  await fanOut(ownerUid, gymIds, {
+    activated_at: serverTimestamp(),
+    expiry_date: expiryDate,
+    grace_hours: 24,
+    last_verified_at: serverTimestamp(),
+    locked: false,
+    trial: true,
+    plan_id: null,
+    plan_name: `Free trial — ${months} month${Number(months) === 1 ? "" : "s"}`,
+  }).commit();
+
+  return expiryDate;
 }
 
 /** Instantly lock an owner's subscription (and every branch's cache), independent of expiry date. */

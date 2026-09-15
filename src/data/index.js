@@ -31,9 +31,11 @@ export {
 } from "./gyms";
 export {
   setOwnerSubscription,
+  startFreeTrial,
   lockOwnerSubscription,
   unlockOwnerSubscription,
 } from "./subscriptions";
+export { resetUserPassword, DEFAULT_PASSWORD } from "./passwords";
 export {
   createOwner,
   createReceptionist,

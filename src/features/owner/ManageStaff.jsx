@@ -67,7 +67,7 @@ export default function ManageStaff() {
                   <td>{s.username}</td>
                   <td><PhoneNumber value={s.phone} /></td>
                   <td>
-                    <StatusBadge active={s.active} activeLabel="Active" inactiveLabel="Deactivated" />
+                    <StatusBadge active={s.active} activeLabel="Active" inactiveLabel="Suspended" />
                   </td>
                 </tr>
               ))}

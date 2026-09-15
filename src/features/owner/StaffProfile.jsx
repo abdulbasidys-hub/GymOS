@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth";
-import { listStaff, listActivityByGym, setUserActive, setUserPhone, setUserEmail } from "../../data";
+import { listStaff, listActivityByGym, setUserActive, setUserPhone, setUserEmail, resetUserPassword } from "../../data";
 import StatusBadge from "../../components/StatusBadge";
 import PhoneNumber from "../../components/PhoneNumber";
 import { formatDateTime, toDate } from "../../lib/helpers";
@@ -27,6 +27,11 @@ export default function StaffProfile() {
   const [editingContact, setEditingContact] = useState(false);
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+
+  // Password reset (functions/index.js). `resetResult` holds what to hand
+  // over once it has worked -- shown until dismissed, since the whole point
+  // is that somebody has to read it out to the person standing there.
+  const [resetResult, setResetResult] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -55,6 +60,29 @@ export default function StaffProfile() {
       setPerson((prev) => ({ ...prev, active: !prev.active }));
     } catch {
       setError("Couldn't update this account.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleResetPassword() {
+    if (
+      !window.confirm(
+        `Reset ${person.name}'s password?
+
+They won't be able to sign in with their current password afterwards. You'll get a temporary one to give them, and they'll choose a new password themselves.`
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    setError("");
+    setResetResult(null);
+    try {
+      const result = await resetUserPassword(person.id);
+      setResetResult(result);
+    } catch (err) {
+      setError(err.message);
     } finally {
       setBusy(false);
     }
@@ -92,7 +120,7 @@ export default function StaffProfile() {
       <div className="card">
         <div className="status-block__head">
           <h2>{person.name}</h2>
-          <StatusBadge active={person.active} activeLabel="Active" inactiveLabel="Deactivated" />
+          <StatusBadge active={person.active} activeLabel="Active" inactiveLabel="Suspended" />
         </div>
         <div className="detail-grid">
           <div>
@@ -142,10 +170,26 @@ export default function StaffProfile() {
               Edit contact info
             </button>
           )}
+          <button className="btn btn--inline" onClick={handleResetPassword} disabled={busy}>
+            Reset password
+          </button>
           <button className="btn btn--inline" onClick={toggleActive} disabled={busy}>
-            {busy ? "Working…" : person.active ? "Deactivate" : "Reactivate"}
+            {busy ? "Working…" : person.active ? "Suspend" : "Unsuspend"}
           </button>
         </div>
+
+        {resetResult && (
+          <div className="notice">
+            <strong>Password reset.</strong> Tell <code>{resetResult.username || person.username}</code>{" "}
+            to sign in with <code>{resetResult.tempPassword}</code> — they'll be asked to choose their own
+            password straight away, and you won't know what they pick.
+            <div className="form-actions">
+              <button className="btn btn--inline" onClick={() => setResetResult(null)}>
+                Done
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="card">

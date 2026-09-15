@@ -45,6 +45,10 @@ function messageFor(code) {
       return "This account hasn't signed in on this device before — connect to the internet once, then try again.";
     case "local/offline-credential-expired":
       return "This device hasn't been online in over 14 days — connect to the internet once to keep offline sign-in working.";
+    // Suspended by the gym owner (users/{uid}.active === false). Not a
+    // credential problem, so it deliberately doesn't read like one.
+    case "local/account-suspended":
+      return "This account has been suspended. Ask the gym owner to switch it back on.";
     case "auth/network-request-failed":
       return "Can't reach the server. Check your internet connection and try again.";
     default:

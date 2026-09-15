@@ -50,3 +50,6 @@ yarn-error.log*
 .idea
 .DS_Store
 *.local
+
+# Cloud Functions dependencies
+functions/node_modules

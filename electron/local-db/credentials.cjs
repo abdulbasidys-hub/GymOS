@@ -66,14 +66,24 @@ function captureCredential(db, { uid, username, gymId, password }) {
 /** Attempted only after a real online sign-in has already failed due to a
  *  network error. Returns `{ ok: true, uid, username, gymId }` on a
  *  valid, still-fresh match; otherwise `{ ok: false, reason: "not_found" |
- *  "invalid" | "expired" }` — the renderer surfaces a distinct message
- *  per reason rather than one generic "sign-in failed". */
+ *  "invalid" | "expired" | "suspended" }` — the renderer surfaces a distinct
+ *  message per reason rather than one generic "sign-in failed". */
 function verifyCredential(db, { username, password }) {
   const row = db.prepare("SELECT * FROM local_credentials WHERE username = ?").get(normalizeUsername(username));
   if (!row) return { ok: false, reason: "not_found" };
   if (!passwordMatches(password, row.password_hash, row.password_salt)) {
     return { ok: false, reason: "invalid" };
   }
+
+  // A suspension made by the owner online has to survive the desk going
+  // offline, or the offline build would be the way around it. The `users`
+  // row is pulled down by the normal sync, so this is as current as the
+  // device's last sync — and a suspension applied while this machine was
+  // offline lands the moment it syncs again. Missing row (nothing pulled
+  // yet) or missing column value is treated as NOT suspended, matching the
+  // `active` default everywhere else.
+  const account = db.prepare("SELECT active FROM users WHERE id = ?").get(row.uid);
+  if (account && account.active === 0) return { ok: false, reason: "suspended" };
 
   // gym_id should always be set in practice (captured right after a real
   // online sign-in, which always knows the signed-in user's gym) — this

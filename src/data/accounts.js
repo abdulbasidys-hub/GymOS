@@ -196,6 +196,17 @@ export async function signInWithUsername(username, password) {
       // right here, so this is the one reliable place to learn gym_id
       // before ensureBootstrapped (auth.jsx) has necessarily run yet.
       const snap = await getDoc(doc(db, "users", cred.user.uid)).catch(() => null);
+      // A suspended account never gets a local session. Without this the
+      // desktop build would sign them in, write local_session, and only
+      // then have the UI show the suspended screen — leaving a usable
+      // offline credential behind for next time. Refusing here means a
+      // suspension seen online is also a suspension offline.
+      if (snap?.exists() && snap.data().active === false) {
+        await signOut(auth).catch(() => {});
+        const suspended = new Error("local/account-suspended");
+        suspended.code = "local/account-suspended";
+        throw suspended;
+      }
       const gymId = snap?.exists() ? snap.data().gym_id ?? null : null;
       // Best-effort: losing offline-login capability for this ONE sign-in
       // (captured again next time) must never turn an already-successful
@@ -231,7 +242,8 @@ export async function signInWithUsername(username, password) {
         return result;
       }
       const code =
-        result.reason === "expired" ? "local/offline-credential-expired"
+        result.reason === "suspended" ? "local/account-suspended"
+        : result.reason === "expired" ? "local/offline-credential-expired"
         : result.reason === "not_found" ? "local/offline-credential-missing"
         : "auth/wrong-password"; // a real local password mismatch — same message as Firebase's own
       const localErr = new Error(code);

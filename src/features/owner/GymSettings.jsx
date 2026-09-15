@@ -105,14 +105,18 @@ export default function GymSettings() {
             </p>
           </div>
           <div>
-            <h4>Subscription</h4>
+            <h4>{gym.subscription?.trial ? "Free trial" : "Subscription"}</h4>
             <p className="muted">
               {gym.subscription?.expiry_date
-                ? `Expires ${formatDate(gym.subscription.expiry_date)}`
+                ? `${gym.subscription?.trial ? "Free until" : "Expires"} ${formatDate(gym.subscription.expiry_date)}`
                 : "Not yet set."}{" "}
               — <strong className={`status-text status-text--${status}`}>{capitalize(status)}</strong>
             </p>
-            <p className="muted hint">Managed by your provider — contact them to renew or make changes.</p>
+            <p className="muted hint">
+              {gym.subscription?.trial
+                ? "You're on a free trial. Everything works exactly as it will on a paid plan, and nothing you record is lost when it ends — contact your provider to keep going."
+                : "Managed by your provider — contact them to renew or make changes."}
+            </p>
           </div>
         </div>
       </div>

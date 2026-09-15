@@ -18,6 +18,7 @@ import {
   reactivateGym,
   logAdminActivity,
   deleteGymAndAllData,
+  resetUserPassword,
 } from "../../data";
 import Modal from "../../components/Modal";
 import StatusBadge from "../../components/StatusBadge";
@@ -40,11 +41,13 @@ function PersonDetailModal({ person, onClose, onSaveContact, onToggleActive }) {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [resetResult, setResetResult] = useState(null);
 
   useEffect(() => {
     setPhone(person?.phone || "");
     setEmail(person?.email || "");
     setError("");
+    setResetResult(null);
   }, [person]);
 
   async function saveContact() {
@@ -73,6 +76,23 @@ function PersonDetailModal({ person, onClose, onSaveContact, onToggleActive }) {
     }
   }
 
+  // Rescues an owner (or receptionist) who has forgotten their password.
+  // See functions/index.js -- the server decides who may do this, not this
+  // screen.
+  async function resetPassword() {
+    if (!window.confirm(`Reset ${person.name}'s password? Their current one stops working immediately.`)) return;
+    setBusy(true);
+    setError("");
+    setResetResult(null);
+    try {
+      setResetResult(await resetUserPassword(person.id));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <Modal open={!!person} onClose={onClose} title={person?.name || ""}>
       {person && (
@@ -85,7 +105,7 @@ function PersonDetailModal({ person, onClose, onSaveContact, onToggleActive }) {
             <div>
               <h4>Status</h4>
               <p>
-                <StatusBadge active={person.active} activeLabel="Active" inactiveLabel="Deactivated" />
+                <StatusBadge active={person.active} activeLabel="Active" inactiveLabel="Suspended" />
               </p>
             </div>
           </div>
@@ -105,10 +125,21 @@ function PersonDetailModal({ person, onClose, onSaveContact, onToggleActive }) {
             <button className="btn btn--inline btn--primary" onClick={saveContact} disabled={busy}>
               {busy ? "Saving…" : "Save"}
             </button>
+            <button className="btn btn--inline" onClick={resetPassword} disabled={busy}>
+              Reset password
+            </button>
             <button className="btn btn--inline" onClick={toggleActive} disabled={busy}>
-              {person.active ? "Deactivate" : "Reactivate"}
+              {person.active ? "Suspend" : "Unsuspend"}
             </button>
           </div>
+
+          {resetResult && (
+            <div className="notice">
+              <strong>Password reset.</strong> Tell <code>{resetResult.username || person.username}</code> to
+              sign in with <code>{resetResult.tempPassword}</code> — they'll choose their own password
+              straight away.
+            </div>
+          )}
         </>
       )}
     </Modal>

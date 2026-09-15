@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth";
-import { createGym, createOwner, addBranchToOwner, listAffiliates, listOwners, logAdminActivity } from "../../data";
+import { createGym, createOwner, addBranchToOwner, listAffiliates, listOwners, logAdminActivity, startFreeTrial } from "../../data";
 import CountryPicker from "../../components/CountryPicker";
 import OwnerPicker from "../../components/OwnerPicker";
 import { countryByCode } from "../../lib/countries";
@@ -9,6 +9,23 @@ import { countryByCode } from "../../lib/countries";
 const MODES = [
   { value: "new", label: "New owner" },
   { value: "existing", label: "Existing owner" },
+];
+
+// How long a brand-new gym gets for free before it has to pay. Promotions
+// are the point: most gyms won't buy on the spot, so the trial is the hook
+// that gets the software onto their desk. "0" means no trial at all -- the
+// gym starts with no subscription, exactly as it always did, and the super
+// admin sets one up from the subscription screen.
+//
+// Only offered in "new owner" mode. A branch added to an existing owner
+// joins that owner's pooled subscription (BUILD.md 6), so it has nothing
+// of its own to give away.
+const TRIAL_MONTHS = [
+  { value: 0, label: "No free trial — start on a paid plan" },
+  { value: 1, label: "1 month free" },
+  { value: 2, label: "2 months free" },
+  { value: 3, label: "3 months free" },
+  { value: 6, label: "6 months free" },
 ];
 
 // Rendered inside a Modal (GymsList.jsx) — no card wrapper or heading of its
@@ -34,6 +51,8 @@ export default function NewGym() {
   const [existingOwner, setExistingOwner] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [trialMonths, setTrialMonths] = useState(1);
+  const [trialEndsOn, setTrialEndsOn] = useState(null); // set once the trial is actually started
   const [createdOwner, setCreatedOwner] = useState(null); // { username, tempPassword } — shown once, "new" mode only
   const [branchAdded, setBranchAdded] = useState(null); // ownerName — shown once, "existing" mode only
   const [gymId, setGymId] = useState(null);
@@ -99,6 +118,20 @@ export default function NewGym() {
           phone: cleanOwnerPhone,
           email: ownerEmail.trim(),
         });
+        // The trial belongs to the OWNER, not the gym -- subscriptions are
+        // pooled per owner and mirrored onto each of their gyms, so this is
+        // the same path a paid plan takes.
+        if (Number(trialMonths) > 0) {
+          const endsOn = await startFreeTrial(owner.id, [gym.id], Number(trialMonths));
+          setTrialEndsOn(endsOn);
+          await logAdminActivity({
+            gymId: gym.id,
+            gymName: gym.name,
+            activity: `Free trial started — ${trialMonths} month${Number(trialMonths) === 1 ? "" : "s"}`,
+            status: "active",
+            performedBy: account?.name,
+          });
+        }
         setGymId(gym.id);
         setCreatedOwner({ username: owner.username, tempPassword: owner.tempPassword });
       } else {
@@ -124,6 +157,17 @@ export default function NewGym() {
           <br />
           They'll be asked to set their own on first login.
         </div>
+        {trialEndsOn ? (
+          <div className="notice">
+            <strong>Free trial running.</strong> This gym has full access until{" "}
+            <strong>{trialEndsOn.toLocaleDateString()}</strong>, then it locks until a paid plan is
+            added. Nothing they record during the trial is ever lost.
+          </div>
+        ) : (
+          <div className="notice">
+            No free trial was given — set this owner up with a plan from their subscription screen.
+          </div>
+        )}
         <div className="form-actions">
           <button className="btn btn--primary btn--inline" onClick={() => navigate(`/admin/gyms/${gymId}`)}>
             Go to gym →
@@ -252,6 +296,32 @@ export default function NewGym() {
                 </select>
               </label>
             </div>
+
+            <label className="field">
+              <span>Free trial</span>
+              <select value={trialMonths} onChange={(e) => setTrialMonths(Number(e.target.value))}>
+                {TRIAL_MONTHS.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="muted hint">
+              {Number(trialMonths) > 0 ? (
+                <>
+                  Full access, free, for {trialMonths} month{Number(trialMonths) === 1 ? "" : "s"} from
+                  today. When it runs out the gym locks until a paid plan is added — nothing they
+                  recorded is lost, and it all comes back the moment you add one. No platform revenue
+                  and no affiliate commission is recorded for a trial.
+                </>
+              ) : (
+                <>
+                  This gym starts with no subscription. Add a plan from the owner's subscription screen
+                  when they pay.
+                </>
+              )}
+            </p>
           </>
         ) : (
           <>
