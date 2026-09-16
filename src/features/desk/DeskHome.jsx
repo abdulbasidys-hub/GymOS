@@ -17,14 +17,14 @@ import DeskSettings from "./DeskSettings";
 // on a phone it lives as a section inside Settings (DeskSettings.jsx)
 // rather than spending a permanent slot in a four-item bar.
 const NAV = [
-  { to: "/desk", end: true, label: "Check-in", Icon: IconCheckCircle, tab: true },
-  { to: "/desk/members", label: "Members", Icon: IconPeople, tab: true },
-  { to: "/desk/finances", label: "Finances", Icon: IconChart, tab: true },
+  { to: "/desk", end: true, label: "Check-in", Icon: IconCheckCircle, tab: true, tabOrder: 1 },
+  { to: "/desk/members", label: "Members", Icon: IconPeople, tab: true, tabOrder: 2 },
+  { to: "/desk/finances", label: "Finances", Icon: IconChart, tab: true, tabOrder: 3 },
   { to: "/desk/downloads", label: "Downloads", Icon: IconDownload },
   // A nav destination rather than a gear in the header — see
   // DeskSettings.jsx. On a phone the top bar has room for the gym's
   // name or another icon, not both, and the nav bar has the space.
-  { to: "/desk/settings", label: "Settings", Icon: IconGear, tab: true },
+  { to: "/desk/settings", label: "Settings", Icon: IconGear, tab: true, tabOrder: 4 },
 ];
 
 // Milestone 3 (BUILD.md §15) — the sync icon-button's title/aria-label.
@@ -49,13 +49,24 @@ export default function DeskHome() {
   // — both cases are folded into isLocked by AuthProvider (src/auth.jsx).
   if (isLocked) return <LockedScreen />;
 
+  // Where the floating "+" belongs. On a phone it is an action attached to
+  // the page under it, so it only appears where registering a member is the
+  // obvious next thing: the check-in search, and the member list. It would
+  // be noise on Finances, Settings, a member's own profile — and on the
+  // registration form itself, where it would cover that form's own buttons.
+  //
+  // The DESKTOP sidebar button is unaffected: there it is part of the
+  // permanent chrome, visible from every page, which is why this hides it
+  // through a class the phone stylesheet acts on rather than by not
+  // rendering it.
+  const primaryIsRelevant = pathname === "/desk" || pathname === "/desk/members";
   const onRegisterPage = pathname.startsWith("/desk/register");
 
   return (
     <div className="shell">
       <aside className="sidebar">
         <div className="sidebar__brand">
-          <Logo size={40} iconOnly chrome />
+          <Logo size={40} iconOnly />
           <div className="topbar__brand-text">
             <span className="topbar__brand-name">
               Gym<span className="topbar__brand-name-accent">OS</span>
@@ -76,7 +87,7 @@ export default function DeskHome() {
             the form's own Cancel/Register buttons — a shortcut covering
             the thing it is a shortcut to. */}
         {!onRegisterPage && (
-          <div className="sidebar__primary">
+          <div className={`sidebar__primary ${primaryIsRelevant ? "" : "sidebar__primary--desk-only"}`}>
             <Link className="btn btn--primary" to="/desk/register" aria-label="Register a new member">
               <IconPlus />
               <span className="sidebar__primary-label">Register a new member</span>
@@ -91,7 +102,9 @@ export default function DeskHome() {
               to={n.to}
               end={n.end}
               className={({ isActive }) =>
-                `sidebar__link ${isActive ? "active" : ""} ${n.tab ? "" : "sidebar__link--more"}`
+                `sidebar__link ${isActive ? "active" : ""} ${
+                  n.tab ? `sidebar__link--tab-${n.tabOrder}` : "sidebar__link--more"
+                }`
               }
             >
               <n.Icon />

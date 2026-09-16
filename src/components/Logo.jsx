@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTheme } from "../theme";
 import logo from "../assets/logo.png";
 import logoDark from "../assets/logo-dark.png";
@@ -27,34 +27,9 @@ import logoDark from "../assets/logo-dark.png";
 // that already show the "GymOS" name as separate text alongside this
 // component — it swaps the wordmark fallback for a bare mark so the name
 // doesn't render twice.
-// True while the app is in its phone layout, where the top bar and tab bar
-// are dark in BOTH themes (index.css). Same breakpoint as the layout switch.
-function usePhoneLayout() {
-  const [phone, setPhone] = useState(
-    () => typeof window !== "undefined" && window.matchMedia("(max-width: 860px)").matches
-  );
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 860px)");
-    const onChange = (e) => setPhone(e.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
-  return phone;
-}
-
-/**
- * `chrome` marks the copies of the mark that sit in the app's own frame —
- * the header of each role's shell. Those bars are dark on a phone whatever
- * theme is chosen, and the light artwork's black half vanishes against
- * them, so the mark has to follow the BAR rather than the theme. Everywhere
- * else (login, splash, locked screen) sits on the page and follows the
- * theme exactly as before.
- */
-export default function Logo({ size = 32, className = "", iconOnly = false, chrome = false }) {
+export default function Logo({ size = 32, className = "", iconOnly = false }) {
   const [failed, setFailed] = useState(false);
   const { effective } = useTheme();
-  const phoneLayout = usePhoneLayout();
-  const onDark = effective === "dark" || (chrome && phoneLayout);
 
   if (failed) {
     if (iconOnly) {
@@ -77,7 +52,7 @@ export default function Logo({ size = 32, className = "", iconOnly = false, chro
 
   return (
     <img
-      src={onDark ? logoDark : logo}
+      src={effective === "dark" ? logoDark : logo}
       alt="GymOS"
       className={`logo-img ${className}`}
       style={{ height: size }}

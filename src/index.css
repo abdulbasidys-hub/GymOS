@@ -106,13 +106,6 @@
   --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06);
   --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.1);
 
-  /* The phone's top bar and tab bar are always dark, in every theme (see
-     the mobile block at the bottom of this file). Declared here rather
-     than inline so src/theme.jsx can read the same value when it points
-     <meta name="theme-color"> at the phone's status bar. */
-  --mobile-chrome: #0D0D0D;
-  --mobile-chrome-border: rgba(255, 255, 255, 0.14);
-
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
@@ -607,8 +600,21 @@ select:focus {
      them. */
   .sidebar__link--more { display: none; }
 
+  /* -- tab order --
+     The bar's left-to-right order is set per role and is INDEPENDENT of the
+     desktop sidebar's order, which stays as it is: the owner's sidebar
+     opens with Dashboard, but on the bar Dashboard sits in the middle,
+     under the thumb, because it's the page the app opens on. Only applies
+     inside this media query, so the desktop column is untouched. */
+  .sidebar__link--tab-1 { order: 1; }
+  .sidebar__link--tab-2 { order: 2; }
+  .sidebar__link--tab-3 { order: 3; }
+  .sidebar__link--tab-4 { order: 4; }
+  .sidebar__link--tab-5 { order: 5; }
+
   /* The burger takes a tab's place at the far left of the bar. */
   .nav-more {
+    order: 0;
     display: flex;
     border: none;
     background: none;
@@ -636,10 +642,10 @@ select:focus {
     flex-direction: column;
     gap: 2px;
     padding: 8px 10px 12px;
-    background: var(--mobile-chrome);
-    border-top: 1px solid var(--mobile-chrome-border);
+    background: var(--surface);
+    border-top: 1px solid var(--border);
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    box-shadow: 0 -14px 34px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 -14px 34px rgba(0, 0, 0, 0.22);
     max-height: 60vh;
     overflow-y: auto;
   }
@@ -647,7 +653,7 @@ select:focus {
     width: 38px;
     height: 4px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(var(--tint-rgb), 0.25);
     margin: 2px auto 8px;
     flex-shrink: 0;
   }
@@ -660,54 +666,12 @@ select:focus {
     font-size: 15px;
     font-weight: 600;
     text-decoration: none;
-    color: rgba(255, 255, 255, 0.82);
+    color: var(--text-secondary);
   }
-  .nav-sheet__link svg { width: 20px; height: 20px; opacity: 0.9; }
+  .nav-sheet__link svg { width: 20px; height: 20px; opacity: 0.85; }
   .nav-sheet__link.active { background: var(--accent); color: var(--accent-ink); }
-  .nav-sheet__link:active { background: rgba(255, 255, 255, 0.08); }
+  .nav-sheet__link:active { background: rgba(var(--tint-rgb), 0.06); }
   .nav-sheet__link.active:active { background: var(--accent); }
-
-  /* -- dark chrome, in every theme --
-     The top bar and the tab bar are the app's frame, not its content. A
-     light frame on a phone reads as a web page inside a browser; a dark one
-     reads as an app, and it matches what the phone paints behind the status
-     bar (src/theme.jsx points <meta name="theme-color"> at this same value
-     on a phone). So both bars are dark whatever theme the person picked —
-     the PAGE between them still follows their choice. */
-  .sidebar,
-  .sidebar__nav {
-    background: var(--mobile-chrome);
-    border-color: var(--mobile-chrome-border);
-  }
-  .sidebar { border-bottom-color: var(--mobile-chrome-border); }
-  .sidebar__nav { border-top-color: var(--mobile-chrome-border); }
-
-  /* Scoped to .sidebar, not bare, because the base .topbar__brand-* rules
-     are declared LATER in this file — an unscoped override here would lose
-     to them on source order and leave dark text on the dark bar. */
-  .sidebar .topbar__brand-name { color: #fff; }
-  .sidebar .topbar__brand-name-accent { color: var(--accent); }
-  .sidebar .topbar__brand-gym { color: rgba(255, 255, 255, 0.62); }
-
-  .sidebar__nav .sidebar__link { color: rgba(255, 255, 255, 0.66); }
-  .sidebar__nav .sidebar__link.active { color: var(--accent); }
-  .sidebar__nav .sidebar__link:active { background: rgba(255, 255, 255, 0.07); }
-
-  /* The header's own controls, now sitting on black. */
-  .sidebar__actions .btn--icon,
-  .sidebar__actions .theme-toggle {
-    color: #fff;
-    border-color: rgba(255, 255, 255, 0.28);
-    background: rgba(255, 255, 255, 0.06);
-  }
-  .sidebar__actions .btn--icon:active,
-  .sidebar__actions .theme-toggle:active { background: rgba(255, 255, 255, 0.16); }
-
-  .branch-switcher {
-    background-color: rgba(255, 255, 255, 0.08);
-    color: #fff;
-    border-color: rgba(255, 255, 255, 0.28);
-  }
 
   /* -- primary action as a floating button --
      Only the desk shell has one ("Register a new member"). Its label is
@@ -723,6 +687,10 @@ select:focus {
     margin: 0;
     padding: 0;
   }
+  /* Set by DeskHome.jsx on pages where registering a member isn't the
+     obvious next action. Phone-only: the desktop sidebar keeps its button
+     on every page. */
+  .sidebar__primary--desk-only { display: none; }
   .sidebar__primary-label { display: none; }
   .sidebar__primary .btn--primary {
     width: 56px;
@@ -1243,14 +1211,20 @@ input:where(:not([type="checkbox"]):not([type="radio"])):focus, select:focus { b
    doesn't, the field keeps the browser's own masking and still picks up
    the tracking, so the fallback is "better than before", not "broken". */
 input[type="password"] {
-  /* `disc` masks with a small bullet; the browser's own default (and
-     `circle`) is a full-size filled circle, which at the 16px font phones
-     need to avoid iOS's focus-zoom came out looking like a row of large
-     black blobs. Tracking comes down with it so the dots stay a group
-     rather than drifting apart. */
+  /* There is no CSS property for the size of a masking dot — it is a glyph,
+     so it scales with font-size and nothing else. The only way to halve the
+     dot is to halve the type size, which is safe here because a password
+     field never shows real text: the small size applies to the dots alone.
+     Tracking is widened to compensate, so the row still reads as separate
+     characters rather than a dotted line.
+
+     KNOWN TRADE-OFF: Safari on iPhone zooms the page when a field smaller
+     than 16px takes focus — in a browser tab only, not in the installed
+     app, where the viewport is fixed. Pinch-zoom still works either way. */
   -webkit-text-security: disc;
   text-security: disc;
-  letter-spacing: 0.16em;
+  font-size: 9px;
+  letter-spacing: 0.42em;
 }
 select {
   cursor: pointer;
@@ -2702,6 +2676,10 @@ select option { background: var(--surface); color: var(--text); }
      a demo, and it applies to <select> and inline table inputs too, not
      just the obvious .field ones. */
   input, select, textarea { font-size: 16px; }
+  /* ...except password fields, whose whole point above is a smaller glyph.
+     Re-stated here because the blanket rule would otherwise win on source
+     order and put the big dots straight back on a phone. */
+  input[type="password"] { font-size: 9px; letter-spacing: 0.42em; }
   .field input, .field select, .field textarea { padding: 12px 13px; }
   .field select { padding-right: 32px; }
   /* Same specificity as the rule above and declared later, so it has to

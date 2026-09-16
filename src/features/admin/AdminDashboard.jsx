@@ -24,8 +24,8 @@ import AffiliateDetailPage from "./AffiliateDetailPage";
 // themselves — stay on the bar; the rest live behind the burger
 // (NavMore.jsx). The desktop sidebar is unchanged and still shows all eight.
 const NAV = [
-  { to: "/admin", end: true, label: "Dashboard", Icon: IconDashboard, tab: true },
-  { to: "/admin/gyms", label: "Gyms", Icon: IconBuilding, tab: true },
+  { to: "/admin", end: true, label: "Dashboard", Icon: IconDashboard, tab: true, tabOrder: 1 },
+  { to: "/admin/gyms", label: "Gyms", Icon: IconBuilding, tab: true, tabOrder: 2 },
   { to: "/admin/subscriptions", label: "Subscriptions", Icon: IconCard },
   { to: "/admin/revenue", label: "Revenue", Icon: IconChart },
   { to: "/admin/marketers", label: "Marketers", Icon: IconMegaphone },
@@ -40,7 +40,7 @@ export default function AdminDashboard() {
     <div className="shell">
       <aside className="sidebar">
         <div className="sidebar__brand">
-          <Logo size={35} iconOnly chrome />
+          <Logo size={35} iconOnly />
           <span className="topbar__brand-name">
             Gym<span className="topbar__brand-name-accent">OS</span>
           </span>
@@ -54,7 +54,9 @@ export default function AdminDashboard() {
               to={n.to}
               end={n.end}
               className={({ isActive }) =>
-                `sidebar__link ${isActive ? "active" : ""} ${n.tab ? "" : "sidebar__link--more"}`
+                `sidebar__link ${isActive ? "active" : ""} ${
+                  n.tab ? `sidebar__link--tab-${n.tabOrder}` : "sidebar__link--more"
+                }`
               }
             >
               <n.Icon />

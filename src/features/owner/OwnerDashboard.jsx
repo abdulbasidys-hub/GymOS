@@ -30,13 +30,19 @@ import DownloadsPage from "../DownloadsPage";
 // owner's eight are cut to the three most-used, plus Settings pinned last
 // and the burger pinned first.
 const NAV = [
-  { to: "/owner", end: true, label: "Dashboard", Icon: IconDashboard, tab: true },
-  { to: "/owner/members", label: "Members", Icon: IconPeople, tab: true },
+  // `tabOrder` places the tab on the phone bar independently of this list's
+  // order, which the desktop sidebar follows. Dashboard sits in the MIDDLE
+  // of the bar rather than first: it's the page the app opens on and the
+  // one returned to most, so it belongs under the thumb, not in the corner.
+  // Reading order on a phone is More · Members · Dashboard · Finances ·
+  // Settings.
+  { to: "/owner", end: true, label: "Dashboard", Icon: IconDashboard, tab: true, tabOrder: 2 },
+  { to: "/owner/members", label: "Members", Icon: IconPeople, tab: true, tabOrder: 1 },
   { to: "/owner/attendance", label: "Attendance", Icon: IconClipboard },
-  { to: "/owner/finances", label: "Finances", Icon: IconChart, tab: true },
+  { to: "/owner/finances", label: "Finances", Icon: IconChart, tab: true, tabOrder: 3 },
   { to: "/owner/staff", label: "Team", Icon: IconBadge },
   { to: "/owner/downloads", label: "Downloads", Icon: IconDownload },
-  { to: "/owner/settings", label: "Settings", Icon: IconGear, tab: true },
+  { to: "/owner/settings", label: "Settings", Icon: IconGear, tab: true, tabOrder: 4 },
 ];
 const BRANCHES_NAV = { to: "/owner/branches", label: "All branches", Icon: IconBuilding };
 
@@ -68,7 +74,7 @@ export default function OwnerDashboard() {
     <div className="shell">
       <aside className="sidebar">
         <div className="sidebar__brand">
-          <Logo size={40} iconOnly chrome />
+          <Logo size={40} iconOnly />
           <div className="topbar__brand-text">
             <span className="topbar__brand-name">
               Gym<span className="topbar__brand-name-accent">OS</span>
@@ -110,7 +116,9 @@ export default function OwnerDashboard() {
               to={n.to}
               end={n.end}
               className={({ isActive }) =>
-                `sidebar__link ${isActive ? "active" : ""} ${n.tab ? "" : "sidebar__link--more"}`
+                `sidebar__link ${isActive ? "active" : ""} ${
+                  n.tab ? `sidebar__link--tab-${n.tabOrder}` : "sidebar__link--more"
+                }`
               }
             >
               <n.Icon />

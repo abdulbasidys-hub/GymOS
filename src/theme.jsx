@@ -20,16 +20,17 @@ function applyTheme(preference) {
 // media-scoped tags so the very first paint already matches the OS
 // preference; this replaces them with one unconditional tag matching the
 // theme actually showing, since the in-app toggle can disagree with the OS.
-// Values are the literal --bg of each theme (index.css) — read from the
-// tokens rather than hardcoded, so this can't drift if the palette moves.
+// The colour is read from the palette tokens rather than hardcoded, so
+// this can't drift if the palette moves.
 function applyThemeColor(effective) {
   const styles = getComputedStyle(document.documentElement);
-  // On a phone the top bar is always dark, whatever theme is chosen (see
-  // index.css's mobile block) — so the strip the browser paints above it
-  // has to match THAT, not the page's background, or the app sits under a
-  // white band in light mode. Same breakpoint as the layout switch.
+  // Which colour the browser's strip has to match depends on what is
+  // directly underneath it. On a phone that's the app's top bar, which is
+  // --surface; on a desktop there is no top bar and the page's own --bg
+  // runs to the edge. Getting this wrong is what put a white band above a
+  // grey header. Same breakpoint as the layout switch.
   const isPhoneLayout = window.matchMedia("(max-width: 860px)").matches;
-  const token = isPhoneLayout ? "--mobile-chrome" : "--bg";
+  const token = isPhoneLayout ? "--surface" : "--bg";
   const bg = styles.getPropertyValue(token).trim() || styles.getPropertyValue("--bg").trim();
   if (!bg) return;
   document
@@ -43,15 +44,10 @@ function applyThemeColor(effective) {
   }
   meta.setAttribute("content", bg);
   // iOS uses its own tag for the status bar text colour in a home-screen
-  // install.
+  // install; "black-translucent" is what keeps white text legible over a
+  // dark app, "default" (dark text) over a light one.
   const status = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
-  // "black-translucent" is what keeps the status bar's text white. On a
-  // phone the bar behind it is dark in BOTH themes, so light text is always
-  // the right answer there; only a desktop-width light theme wants the dark
-  // "default" text.
-  if (status) {
-    status.setAttribute("content", isPhoneLayout || effective === "dark" ? "black-translucent" : "default");
-  }
+  if (status) status.setAttribute("content", effective === "dark" ? "black-translucent" : "default");
 }
 
 export function ThemeProvider({ children }) {
