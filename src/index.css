@@ -516,6 +516,12 @@ select:focus {
     border-radius: 0;
   }
   .sidebar__identity { display: none; }
+  /* The light/dark toggle moves into each role's Settings page on a phone.
+     The header row has space for the gym's name or another control, not
+     both, and appearance is a set-once preference rather than something
+     reached from every screen. Every Settings page carries the full
+     Light / Dark / System choice. */
+  .sidebar__actions .theme-toggle { display: none; }
   .sidebar__actions { gap: 6px; }
   /* Deliberately under the 44px touch target the rest of the phone layout
      holds to. These are the top bar's own controls, hit occasionally and
@@ -618,8 +624,13 @@ select:focus {
     display: flex;
     border: none;
     background: none;
-    font: inherit;
     cursor: pointer;
+    /* font-FAMILY only. The `font` shorthand resets size, weight and
+       line-height too, which overrode .sidebar__link's 10.5px and made the
+       burger's label taller than every other tab — pushing the whole bar
+       down with it. */
+    font-family: inherit;
+    color: inherit;
   }
 
   /* -- the overflow sheet --
@@ -794,35 +805,6 @@ a, button, select, summary, label, [role="button"],
 .tab, .row--expandable, .plan-option, .card--link, .stat-card--link {
   touch-action: manipulation;
 }
-
-/* The only window control on a frameless Electron window (BUILD.md §15
-   — CloseButton.jsx; supersedes an earlier full custom title bar per
-   explicit follow-up request). Floats over the page — position:fixed,
-   not part of the layout flow, so it needs no reserved space the way a
-   title bar strip would. Bare "×", deliberately no circle/backdrop
-   (explicit request — reads as part of the window chrome rather than
-   app UI, "blend into the software"). Mostly-transparent until hovered,
-   turning solid --bad (red) then — the universal close-button
-   convention — the click target (width/height) stays a full 32px even
-   though only the icon paints, so it's still easy to hit precisely. */
-.app-close-btn {
-  position: fixed;
-  top: 12px;
-  right: 12px;
-  z-index: 1000;
-  width: 32px;
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  opacity: 0.55;
-  transition: opacity var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
-}
-.app-close-btn:hover { opacity: 1; color: var(--bad); }
 
 /* ---- Phase 1 boot screen ---- */
 
@@ -1211,20 +1193,20 @@ input:where(:not([type="checkbox"]):not([type="radio"])):focus, select:focus { b
    doesn't, the field keeps the browser's own masking and still picks up
    the tracking, so the fallback is "better than before", not "broken". */
 input[type="password"] {
-  /* There is no CSS property for the size of a masking dot — it is a glyph,
-     so it scales with font-size and nothing else. The only way to halve the
-     dot is to halve the type size, which is safe here because a password
-     field never shows real text: the small size applies to the dots alone.
-     Tracking is widened to compensate, so the row still reads as separate
-     characters rather than a dotted line.
-
-     KNOWN TRADE-OFF: Safari on iPhone zooms the page when a field smaller
-     than 16px takes focus — in a browser tab only, not in the installed
-     app, where the viewport is fixed. Pinch-zoom still works either way. */
+  /* The masking dot is a GLYPH, so its size follows font-size and nothing
+     else — there is no CSS property for it. That leaves one free choice:
+     WHICH glyph. `disc` is U+2022 BULLET, roughly a quarter of the em box;
+     the browser's own default is U+25CF BLACK CIRCLE, well over half. So
+     this is the smallest dot available without shrinking the type.
+     
+     The type size deliberately stays at the shared input size: dropping it
+     made the password box visibly shorter than the username box above it,
+     and anything under 16px makes mobile Safari zoom the page when the
+     field takes focus. Tracking spaces the dots so they read as separate
+     characters rather than a dotted line. */
   -webkit-text-security: disc;
   text-security: disc;
-  font-size: 9px;
-  letter-spacing: 0.42em;
+  letter-spacing: 0.3em;
 }
 select {
   cursor: pointer;
@@ -2675,11 +2657,11 @@ select option { background: var(--surface); color: var(--text); }
      back out — the single most disorienting thing that can happen during
      a demo, and it applies to <select> and inline table inputs too, not
      just the obvious .field ones. */
+  /* 16px is the threshold under which mobile Safari zooms the page when a
+     field takes focus. Password fields are included, not excepted: a
+     smaller box there both zoomed and left it shorter than the username
+     box above it. */
   input, select, textarea { font-size: 16px; }
-  /* ...except password fields, whose whole point above is a smaller glyph.
-     Re-stated here because the blanket rule would otherwise win on source
-     order and put the big dots straight back on a phone. */
-  input[type="password"] { font-size: 9px; letter-spacing: 0.42em; }
   .field input, .field select, .field textarea { padding: 12px 13px; }
   .field select { padding-right: 32px; }
   /* Same specificity as the rule above and declared later, so it has to

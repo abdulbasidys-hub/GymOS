@@ -11,6 +11,7 @@ import {
 import Modal from "../../components/Modal";
 import StatusBadge from "../../components/StatusBadge";
 import ChangePasswordForm from "../../components/ChangePasswordForm";
+import ThemePreference from "../../components/ThemePreference";
 import { naira } from "../../lib/helpers";
 
 export default function Settings() {
@@ -57,6 +58,16 @@ export default function Settings() {
     <>
       <PlanManager plans={plans} onCreated={addPlan} onChanged={patchPlan} />
       <CommissionSettings percent={commissionPercent} onChanged={setCommissionPercent} />
+
+      {/* The light/dark choice lives on every role's Settings page — on a
+          phone the header has no room for the toggle (index.css). */}
+      <div className="card">
+        <h2>Appearance</h2>
+        <p className="muted">Choose how GymOS looks on this device.</p>
+        <div className="section-top">
+          <ThemePreference />
+        </div>
+      </div>
 
       <div className="form-actions">
         <button className="btn btn--inline" onClick={() => setPasswordModalOpen(true)}>
