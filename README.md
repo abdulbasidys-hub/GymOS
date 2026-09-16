@@ -29,24 +29,39 @@ straight to login.
 
 ## Status
 
-Functionally complete for a pilot, on both builds:
+**Shipped — v1.0.0, live.** See `CHANGELOG.md` for what's in it and how
+versions are numbered.
+
+| Piece | Where it is |
+|---|---|
+| Web app | **https://gymos.africa** (Vercel) |
+| Desktop app | [GitHub Release v1.0.0](https://github.com/abdulbasidys-hub/GymOS/releases/tag/v1.0.0) — `GymOS-Setup-1.0.0.exe` |
+| Firestore + Storage rules | Deployed to `gymos-30db3` |
+| `resetUserPassword` function | Deployed, `us-central1`, Node 22 |
+| Owner / front-desk PDF guides | Built in `docs/` — **not yet published** on the super-admin Uploads page, so both roles still see "Not available yet" |
+
+Both builds are complete, not stubs:
 
 - **Web** — everyone reads/writes Firestore directly. This is the reference
   behavior; it's what "done" means for every feature in this app.
-- **Electron (offline desktop)** — also done, not a stub. Desk and Owner run
-  against local encrypted SQLite, syncing to Firestore (push and pull) once
-  a connection exists, with a real offline license-expiry gate. Only native
-  fingerprint hardware and a signed-license server remain deliberately
-  deferred here.
+- **Electron (offline desktop)** — Desk and Owner run against local encrypted
+  SQLite, syncing to Firestore (push and pull) once a connection exists, with
+  a real offline license-expiry gate. Only native fingerprint hardware and a
+  signed-license server remain deliberately deferred here.
 
 **Deliberately not built:**
-- Deployment/hosting — this runs from `npm run dev` / a local build only; nothing is live anywhere yet.
-- Password recovery, or anything else that sends email — no email is ever sent by this app.
-- A git repository — version control isn't initialized yet.
+- Self-serve password recovery, or anything else that sends email — no email
+  is ever sent by this app. A forgotten password is reset in person by
+  whoever created the account (super admin for owners, owner for
+  receptionists), which puts it back on the starter password and forces a
+  new one at next sign-in.
+- Auto-update for the desktop app — a new build is a new installer.
+- Any self-serve signup. Every account is created by someone above it.
 
 See `BUILD.md` for the full data model, every screen's behavior, and the
 reasoning behind each decision — it's the actual spec, kept in sync with
-the running code. This file is just the map.
+the running code. `CHANGELOG.md` is what shipped and when;
+`docs/RELEASING.md` is how to ship the next one. This file is just the map.
 
 ## Run
 
