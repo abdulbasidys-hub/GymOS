@@ -42,7 +42,11 @@ export const DOWNLOAD_KINDS = [
     id: "desktop_app",
     label: "GymOS desktop app",
     hint: "The Windows installer. Large — prefer a GitHub Release link over uploading.",
-    roles: ["owner", "receptionist"],
+    // Owners only. Installing the desk software on a gym's computer is the
+    // owner's decision, not a receptionist's — handing every desk account a
+    // 120MB installer invites machines nobody asked for. Receptionists still
+    // get their own guide below.
+    roles: ["owner"],
     webOnly: true,
   },
   {

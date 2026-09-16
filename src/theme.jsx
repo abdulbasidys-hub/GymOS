@@ -23,7 +23,14 @@ function applyTheme(preference) {
 // Values are the literal --bg of each theme (index.css) — read from the
 // tokens rather than hardcoded, so this can't drift if the palette moves.
 function applyThemeColor(effective) {
-  const bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+  const styles = getComputedStyle(document.documentElement);
+  // On a phone the top bar is always dark, whatever theme is chosen (see
+  // index.css's mobile block) — so the strip the browser paints above it
+  // has to match THAT, not the page's background, or the app sits under a
+  // white band in light mode. Same breakpoint as the layout switch.
+  const isPhoneLayout = window.matchMedia("(max-width: 860px)").matches;
+  const token = isPhoneLayout ? "--mobile-chrome" : "--bg";
+  const bg = styles.getPropertyValue(token).trim() || styles.getPropertyValue("--bg").trim();
   if (!bg) return;
   document
     .querySelectorAll('meta[name="theme-color"][media]')
@@ -36,10 +43,15 @@ function applyThemeColor(effective) {
   }
   meta.setAttribute("content", bg);
   // iOS uses its own tag for the status bar text colour in a home-screen
-  // install; "black-translucent" is what keeps white text legible over a
-  // dark app, "default" (dark text) over a light one.
+  // install.
   const status = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
-  if (status) status.setAttribute("content", effective === "dark" ? "black-translucent" : "default");
+  // "black-translucent" is what keeps the status bar's text white. On a
+  // phone the bar behind it is dark in BOTH themes, so light text is always
+  // the right answer there; only a desktop-width light theme wants the dark
+  // "default" text.
+  if (status) {
+    status.setAttribute("content", isPhoneLayout || effective === "dark" ? "black-translucent" : "default");
+  }
 }
 
 export function ThemeProvider({ children }) {
@@ -86,6 +98,12 @@ export function ThemeProvider({ children }) {
   // declaration order), so the computed --bg read inside is the new one.
   useEffect(() => {
     applyThemeColor(effective);
+    // Crossing the phone/desktop breakpoint changes which bar the browser
+    // strip has to match, so re-apply on resize as well as on theme change.
+    const mq = window.matchMedia("(max-width: 860px)");
+    const onChange = () => applyThemeColor(effective);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
   }, [effective]);
 
   const value = {

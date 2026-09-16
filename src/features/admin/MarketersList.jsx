@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { listAffiliates, createAffiliate } from "../../data";
 import Modal from "../../components/Modal";
+import CreateButton from "../../components/CreateButton";
 import StatusBadge from "../../components/StatusBadge";
 import PhoneNumber from "../../components/PhoneNumber";
 
@@ -43,9 +44,7 @@ export default function MarketersList() {
             Revenue
           </NavLink>
         </div>
-        <button className="btn btn--primary btn--inline" onClick={() => setModalOpen(true)}>
-          Register a marketer
-        </button>
+        <CreateButton label="Register a marketer" onClick={() => setModalOpen(true)} />
       </div>
 
       <div className="card">

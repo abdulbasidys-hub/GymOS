@@ -4,6 +4,7 @@ import { useAuth } from "../../auth";
 import { createReceptionist, listStaff } from "../../data";
 import Modal from "../../components/Modal";
 import StatusBadge from "../../components/StatusBadge";
+import CreateButton from "../../components/CreateButton";
 import PhoneNumber from "../../components/PhoneNumber";
 
 export default function ManageStaff() {
@@ -39,9 +40,7 @@ export default function ManageStaff() {
       <div className="card">
         <div className="status-block__head">
           <h2>Staff</h2>
-          <button className="btn btn--primary btn--inline" onClick={() => setModalOpen(true)}>
-            Add a receptionist
-          </button>
+          <CreateButton label="Add a receptionist" onClick={() => setModalOpen(true)} />
         </div>
         {loadError && <p className="form-error">{loadError}</p>}
         {loading ? (

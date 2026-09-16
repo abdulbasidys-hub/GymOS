@@ -20,7 +20,10 @@ function formatSize(bytes) {
   return mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-export default function DownloadsPage() {
+// `embedded` drops the page heading and the outer card so this can sit as a
+// section inside another page — which is how the front desk reaches it on a
+// phone, where Downloads no longer has a tab of its own (DeskSettings.jsx).
+export default function DownloadsPage({ embedded = false }) {
   const { role } = useAuth();
   const [entries, setEntries] = useState({});
   const [loading, setLoading] = useState(true);
@@ -61,20 +64,12 @@ export default function DownloadsPage() {
 
   if (loading) return <p className="empty">Loading…</p>;
 
-  return (
+  // Only owners are offered the installer (data/downloads.js), so the
+  // heading has to describe what THIS role can actually see.
+  const hasInstaller = visible.some((k) => k.id === "desktop_app");
+
+  const rows = (
     <>
-      <div className="page-header">
-        <h1>Downloads</h1>
-        <p>
-          {isElectron
-            ? "Your guide, ready whenever you need it."
-            : "The desktop app and your guide, ready whenever you need them."}
-        </p>
-      </div>
-
-      {error && <p className="form-error">{error}</p>}
-
-      <div className="card">
         {visible.map((kind) => {
           const entry = entries[kind.id];
           return (
@@ -121,7 +116,33 @@ export default function DownloadsPage() {
             </div>
           );
         })}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div className="card">
+        <h2>Downloads</h2>
+        {error && <p className="form-error">{error}</p>}
+        {rows}
       </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="page-header">
+        <h1>Downloads</h1>
+        <p>
+          {hasInstaller
+            ? "The desktop app and your guide, ready whenever you need them."
+            : "Your guide, ready whenever you need it."}
+        </p>
+      </div>
+
+      {error && <p className="form-error">{error}</p>}
+
+      <div className="card">{rows}</div>
     </>
   );
 }

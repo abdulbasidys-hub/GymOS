@@ -1,6 +1,7 @@
 import { useAuth } from "../../auth";
 import ChangePasswordForm from "../../components/ChangePasswordForm";
 import ThemePreference from "../../components/ThemePreference";
+import DownloadsPage from "../DownloadsPage";
 
 // The receptionist's own settings, as a page in the nav rather than a
 // popup behind a gear icon in the header.
@@ -44,6 +45,13 @@ export default function DeskSettings() {
         <h2>Appearance</h2>
         <ThemePreference />
       </div>
+
+      {/* Downloads has no tab of its own on a phone (DeskHome.jsx), so it
+          lives here. Shown at every width rather than hidden behind a media
+          query: on a desktop it's a second, closer route to the same thing,
+          which costs nothing and beats a section that vanishes when the
+          window is resized. */}
+      <DownloadsPage embedded />
 
       <ChangePasswordForm />
     </>

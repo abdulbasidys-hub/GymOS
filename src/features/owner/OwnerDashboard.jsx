@@ -3,6 +3,7 @@ import { useAuth } from "../../auth";
 import Logo from "../../components/Logo";
 import LockedScreen from "../../components/LockedScreen";
 import ThemeToggle from "../../components/ThemeToggle";
+import NavMore from "../../components/NavMore";
 import { IconDashboard, IconPeople, IconClipboard, IconChart, IconBadge, IconGear, IconDownload, IconLogout, IconSync, IconBuilding } from "../../components/NavIcons";
 import OwnerHome from "./OwnerHome";
 import Attendance from "./Attendance";
@@ -22,14 +23,20 @@ import DownloadsPage from "../DownloadsPage";
 // of NAV since it's not a top-level destination. "All branches" (BUILD.md
 // §6) is appended conditionally below, only for owners managing more than
 // one branch — everyone else's nav is exactly what it's always been.
+// `tab: true` means this destination gets its own slot in the phone's
+// bottom bar. Everything else moves behind the burger there (NavMore.jsx)
+// while staying exactly where it is in the desktop sidebar — a phone bar
+// holds about five things before the labels stop being readable, so the
+// owner's eight are cut to the three most-used, plus Settings pinned last
+// and the burger pinned first.
 const NAV = [
-  { to: "/owner", end: true, label: "Dashboard", Icon: IconDashboard },
-  { to: "/owner/members", label: "Members", Icon: IconPeople },
+  { to: "/owner", end: true, label: "Dashboard", Icon: IconDashboard, tab: true },
+  { to: "/owner/members", label: "Members", Icon: IconPeople, tab: true },
   { to: "/owner/attendance", label: "Attendance", Icon: IconClipboard },
-  { to: "/owner/finances", label: "Finances", Icon: IconChart },
+  { to: "/owner/finances", label: "Finances", Icon: IconChart, tab: true },
   { to: "/owner/staff", label: "Team", Icon: IconBadge },
   { to: "/owner/downloads", label: "Downloads", Icon: IconDownload },
-  { to: "/owner/settings", label: "Settings", Icon: IconGear },
+  { to: "/owner/settings", label: "Settings", Icon: IconGear, tab: true },
 ];
 const BRANCHES_NAV = { to: "/owner/branches", label: "All branches", Icon: IconBuilding };
 
@@ -61,7 +68,7 @@ export default function OwnerDashboard() {
     <div className="shell">
       <aside className="sidebar">
         <div className="sidebar__brand">
-          <Logo size={40} iconOnly />
+          <Logo size={40} iconOnly chrome />
           <div className="topbar__brand-text">
             <span className="topbar__brand-name">
               Gym<span className="topbar__brand-name-accent">OS</span>
@@ -94,12 +101,17 @@ export default function OwnerDashboard() {
         )}
 
         <nav className="sidebar__nav">
+          {/* Phone only — hidden in the desktop sidebar, where every link
+              below is already visible. */}
+          <NavMore items={nav.filter((n) => !n.tab)} />
           {nav.map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
               end={n.end}
-              className={({ isActive }) => `sidebar__link ${isActive ? "active" : ""}`}
+              className={({ isActive }) =>
+                `sidebar__link ${isActive ? "active" : ""} ${n.tab ? "" : "sidebar__link--more"}`
+              }
             >
               <n.Icon />
               {n.label}

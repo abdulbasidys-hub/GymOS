@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { listGyms, listOwners } from "../../data";
 import Modal from "../../components/Modal";
+import CreateButton from "../../components/CreateButton";
 import StatusBadge from "../../components/StatusBadge";
 import { licenseStatus } from "../../logic/license";
 import { capitalize } from "../../lib/helpers";
@@ -43,9 +44,7 @@ export default function GymsList() {
     <div className="card">
       <div className="status-block__head">
         <h2>Gyms</h2>
-        <button className="btn btn--primary btn--inline" onClick={() => setModalOpen(true)}>
-          Register a gym
-        </button>
+        <CreateButton label="Register a gym" onClick={() => setModalOpen(true)} />
       </div>
 
       {statusFilter && (

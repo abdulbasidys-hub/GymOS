@@ -39,7 +39,7 @@ export default function AffiliateHome() {
     <div className="shell">
       <aside className="sidebar">
         <div className="sidebar__brand">
-          <Logo size={40} iconOnly />
+          <Logo size={40} iconOnly chrome />
           <div className="topbar__brand-text">
             <span className="topbar__brand-name">
               Gym<span className="topbar__brand-name-accent">OS</span>

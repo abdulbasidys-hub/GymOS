@@ -2,6 +2,7 @@ import { Routes, Route, NavLink } from "react-router-dom";
 import { useAuth } from "../../auth";
 import Logo from "../../components/Logo";
 import ThemeToggle from "../../components/ThemeToggle";
+import NavMore from "../../components/NavMore";
 import { IconDashboard, IconBuilding, IconCard, IconChart, IconMegaphone, IconSync, IconGear, IconUpload, IconLogout } from "../../components/NavIcons";
 import Dashboard from "./Dashboard";
 import GymsList from "./GymsList";
@@ -17,9 +18,14 @@ import MarketersList from "./MarketersList";
 import MarketersRevenue from "./MarketersRevenue";
 import AffiliateDetailPage from "./AffiliateDetailPage";
 
+// `tab: true` means it gets a slot in the phone's bottom bar. The super
+// admin's eight destinations are far too many for one, so only the two the
+// console is actually opened for — the fleet overview and the gyms
+// themselves — stay on the bar; the rest live behind the burger
+// (NavMore.jsx). The desktop sidebar is unchanged and still shows all eight.
 const NAV = [
-  { to: "/admin", end: true, label: "Dashboard", Icon: IconDashboard },
-  { to: "/admin/gyms", label: "Gyms", Icon: IconBuilding },
+  { to: "/admin", end: true, label: "Dashboard", Icon: IconDashboard, tab: true },
+  { to: "/admin/gyms", label: "Gyms", Icon: IconBuilding, tab: true },
   { to: "/admin/subscriptions", label: "Subscriptions", Icon: IconCard },
   { to: "/admin/revenue", label: "Revenue", Icon: IconChart },
   { to: "/admin/marketers", label: "Marketers", Icon: IconMegaphone },
@@ -34,15 +40,23 @@ export default function AdminDashboard() {
     <div className="shell">
       <aside className="sidebar">
         <div className="sidebar__brand">
-          <Logo size={35} iconOnly />
+          <Logo size={35} iconOnly chrome />
           <span className="topbar__brand-name">
             Gym<span className="topbar__brand-name-accent">OS</span>
           </span>
         </div>
 
         <nav className="sidebar__nav">
+          <NavMore items={NAV.filter((n) => !n.tab)} />
           {NAV.map((n) => (
-            <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => `sidebar__link ${isActive ? "active" : ""}`}>
+            <NavLink
+              key={n.to}
+              to={n.to}
+              end={n.end}
+              className={({ isActive }) =>
+                `sidebar__link ${isActive ? "active" : ""} ${n.tab ? "" : "sidebar__link--more"}`
+              }
+            >
               <n.Icon />
               {n.label}
             </NavLink>

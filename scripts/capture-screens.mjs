@@ -60,6 +60,7 @@ const OWNER_SHOTS = [
   ["owner-settings", "/owner/settings", 3000, DESKTOP],
   ["owner-downloads", "/owner/downloads", 3000, DESKTOP],
   ["owner-dashboard-phone", "/owner", 3500, PHONE],
+  ["owner-team-phone", "/owner/staff", 3000, PHONE],
 ];
 
 const DESK_SHOTS = [
@@ -235,6 +236,16 @@ async function pickMember(cdp) {
 // failed attempt leaves a spurious "Couldn't load this member." on screen.
 async function openMemberFromList(cdp, listUrl, memberName, settle) {
   await goto(cdp, listUrl, settle);
+  // Poll for the row rather than trusting one fixed wait: the list is
+  // fetched after the route renders, and a slow fetch used to make this
+  // fail outright.
+  for (let i = 0; i < 20; i++) {
+    const ready = await cdp.eval(
+      `document.querySelectorAll("tr.row--expandable").length > 0`
+    );
+    if (ready) break;
+    await sleep(700);
+  }
   const clicked = await cdp.eval(`(() => {
     const rows = [...document.querySelectorAll("tr.row--expandable")];
     const row = rows.find((r) => r.textContent.includes(${JSON.stringify(memberName)}));
@@ -300,6 +311,23 @@ async function run() {
       await setViewport(cdp, vp);
       await goto(cdp, `${BASE}${route}`, settle);
       await shot(cdp, name);
+    }
+
+    // The phone's overflow menu, open. Only meaningful at phone width --
+    // the burger doesn't exist in the desktop sidebar.
+    await setViewport(cdp, PHONE);
+    await goto(cdp, `${BASE}/owner`, 3000);
+    const opened = await cdp.eval(`(() => {
+      const b = document.querySelector(".nav-more");
+      if (!b) return false;
+      b.click();
+      return true;
+    })()`);
+    if (opened) {
+      await sleep(900);
+      await shot(cdp, "owner-more-phone");
+    } else {
+      console.log("  (burger not found — skipped owner-more-phone)");
     }
 
     // The owner's read-only view of one member.

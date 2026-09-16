@@ -12,15 +12,19 @@ import MemberProfile from "../MemberProfile";
 import DownloadsPage from "../DownloadsPage";
 import DeskSettings from "./DeskSettings";
 
+// `tab: true` means it gets a slot in the phone's bottom bar. Downloads is
+// the one that doesn't: it's a page you visit once, to fetch your guide, so
+// on a phone it lives as a section inside Settings (DeskSettings.jsx)
+// rather than spending a permanent slot in a four-item bar.
 const NAV = [
-  { to: "/desk", end: true, label: "Check-in", Icon: IconCheckCircle },
-  { to: "/desk/members", label: "Members", Icon: IconPeople },
-  { to: "/desk/finances", label: "Finances", Icon: IconChart },
+  { to: "/desk", end: true, label: "Check-in", Icon: IconCheckCircle, tab: true },
+  { to: "/desk/members", label: "Members", Icon: IconPeople, tab: true },
+  { to: "/desk/finances", label: "Finances", Icon: IconChart, tab: true },
   { to: "/desk/downloads", label: "Downloads", Icon: IconDownload },
   // A nav destination rather than a gear in the header — see
   // DeskSettings.jsx. On a phone the top bar has room for the gym's
   // name or another icon, not both, and the nav bar has the space.
-  { to: "/desk/settings", label: "Settings", Icon: IconGear },
+  { to: "/desk/settings", label: "Settings", Icon: IconGear, tab: true },
 ];
 
 // Milestone 3 (BUILD.md §15) — the sync icon-button's title/aria-label.
@@ -51,7 +55,7 @@ export default function DeskHome() {
     <div className="shell">
       <aside className="sidebar">
         <div className="sidebar__brand">
-          <Logo size={40} iconOnly />
+          <Logo size={40} iconOnly chrome />
           <div className="topbar__brand-text">
             <span className="topbar__brand-name">
               Gym<span className="topbar__brand-name-accent">OS</span>
@@ -86,7 +90,9 @@ export default function DeskHome() {
               key={n.to}
               to={n.to}
               end={n.end}
-              className={({ isActive }) => `sidebar__link ${isActive ? "active" : ""}`}
+              className={({ isActive }) =>
+                `sidebar__link ${isActive ? "active" : ""} ${n.tab ? "" : "sidebar__link--more"}`
+              }
             >
               <n.Icon />
               {n.label}
