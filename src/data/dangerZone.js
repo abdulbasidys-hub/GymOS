@@ -18,7 +18,7 @@
 // marketer's OWN account is untouched either way — they aren't scoped to one
 // gym, only their earnings FROM this gym (affiliate_earnings, by gym_id) go.
 
-import { collection, query, where, getDocs, writeBatch, doc, deleteDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, writeBatch, doc, deleteDoc, arrayRemove } from "firebase/firestore";
 import { db } from "./firebase";
 
 const GYM_SCOPED_COLLECTIONS = [
@@ -49,8 +49,33 @@ async function purgeCollection(collectionName, gymId) {
   }
 }
 
+/**
+ * Multi-branch owners reference their gyms in a `gym_ids` ARRAY, which the
+ * gym_id-equality purge above can't see — it only matches the scalar
+ * `gym_id`. Without this, deleting a branch left its id behind in the
+ * owner's array, pointing at a gym that no longer exists. Harmless on its
+ * own, but firestore.rules resolves access from that array, so it is one
+ * bad edit away from an owner who can't reach their own gym.
+ */
+async function removeGymFromOwnerArrays(gymId) {
+  const snap = await getDocs(
+    query(collection(db, "users"), where("gym_ids", "array-contains", gymId))
+  );
+  if (snap.empty) return;
+  const batch = writeBatch(db);
+  for (const d of snap.docs) {
+    batch.update(d.ref, { gym_ids: arrayRemove(gymId) });
+  }
+  await batch.commit();
+}
+
 /** Permanently erase a gym and every document that references it. */
 export async function deleteGymAndAllData(gymId) {
+  // Before the purge: this query needs the owner docs that the purge is
+  // about to delete to still be there for any owner scoped to THIS gym,
+  // and it must also reach owners of OTHER gyms who hold this one as a
+  // branch — they survive the purge and would otherwise keep the stale id.
+  await removeGymFromOwnerArrays(gymId);
   for (const name of GYM_SCOPED_COLLECTIONS) {
     await purgeCollection(name, gymId);
   }

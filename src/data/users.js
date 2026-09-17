@@ -155,7 +155,17 @@ export async function getOwnerForGym(gymId) {
  */
 export async function addBranchToOwner(owner, gymId) {
   const batch = writeBatch(db);
-  batch.update(doc(db, "users", owner.id), { gym_ids: arrayUnion(gymId) });
+  // BOTH ids, not just the new one. arrayUnion on a field that doesn't exist
+  // yet CREATES it containing only what you pass — so for an owner with no
+  // gym_ids (created before the field existed, and never migrated) adding a
+  // second branch used to leave gym_ids: [newBranch] and silently drop the
+  // gym they were already running. firestore.rules reads gym_ids in
+  // preference to gym_id, so that locked them out of their own gym with
+  // nothing but "permission denied" to explain it. Including gym_id here is
+  // a no-op whenever the array is already correct.
+  batch.update(doc(db, "users", owner.id), {
+    gym_ids: owner.gym_id ? arrayUnion(owner.gym_id, gymId) : arrayUnion(gymId),
+  });
   const dotted = {};
   for (const [k, v] of Object.entries(owner.subscription ?? {})) {
     dotted[`subscription.${k}`] = v;

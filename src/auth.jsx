@@ -155,13 +155,16 @@ export function AuthProvider({ children }) {
   // Superadmin has no gym at all — gym stays null for them, which is
   // correct: the platform operator isn't subject to any single gym's lock
   // state.
+  // Same fallback as the context value below — without it the gym doc (and
+  // so the gym's name and lock state) lagged a render behind everything else.
+  const watchedGymId = activeGymId ?? account?.gym_id ?? resolveGymIds(account)[0] ?? null;
   useEffect(() => {
-    if (!activeGymId) {
+    if (!watchedGymId) {
       setGym(null);
       return;
     }
-    return watchGym(activeGymId, setGym);
-  }, [activeGymId]);
+    return watchGym(watchedGymId, setGym);
+  }, [watchedGymId]);
 
   // Electron/offline (BUILD.md §15/§6): one push→pull→pull sync cycle for
   // ONE branch — everything locally-pending reaching Firestore, then
@@ -322,7 +325,17 @@ export function AuthProvider({ children }) {
   // not lock, on either platform.
   const electron = isElectron();
   const licenseState = gym ? licenseStatus(gym, electron ? licenseNow : new Date()) : null;
-  const isLocked = !!gym && (licenseState === "locked" || (electron && licenseState === "expired"));
+  // "expired" means past the expiry date AND past the grace window, and it
+  // now locks on BOTH platforms. It used to lock only in Electron, on the
+  // reasoning that firestore.rules was the real gate on the web — but the
+  // rules only ever checked the manual `locked` flag, never the date, so a
+  // subscription that simply ran out kept working on the web until somebody
+  // noticed and flipped a switch by hand. Free trials made that the default
+  // path rather than an edge case: every trial would have run forever.
+  // gymIsOperational() in firestore.rules now enforces the same date, so
+  // this is the friendly face of a real wall rather than the wall itself.
+  // "grace" (past expiry, still inside the window) deliberately does not lock.
+  const isLocked = !!gym && (licenseState === "locked" || licenseState === "expired");
 
   // Idle auto-logout (BUILD.md §15) — universal: every platform, every
   // role, 30 minutes. An unattended signed-in desk (offline, where this
@@ -404,6 +417,18 @@ export function AuthProvider({ children }) {
     );
   }
 
+  // activeGymId is set by an effect, so it is null for the first render
+  // after sign-in resolves — and EVERY gym-scoped screen fires its queries
+  // from its own effect in that same window. They were all querying
+  // `gym_id == null`, getting denied, and racing their own retry; whichever
+  // settled last won, which is why a refresh could leave a correct page
+  // wearing a "Couldn't load…" error.
+  //
+  // Falling back to the account's own primary gym closes the window
+  // entirely: gymId is right from the first render, and the effect only
+  // ever REFINES it (restoring a multi-branch owner's stored branch).
+  const resolvedGymId = activeGymId ?? account?.gym_id ?? resolveGymIds(account)[0] ?? null;
+
   const value = {
     status,
     user,
@@ -411,7 +436,7 @@ export function AuthProvider({ children }) {
     gym,
     branches,
     role: account?.role ?? null,
-    gymId: activeGymId,
+    gymId: resolvedGymId,
     setActiveGym,
     signOut: signOutUser,
     isLocked,

@@ -17,7 +17,7 @@ service cloud.firestore {
     }
     function myGymIds() {
       let u = myAccount();
-      return u.get('gym_ids', [u.get('gym_id', '')]);
+      return u.get('gym_ids', []).concat([u.get('gym_id', '')]);
     }
     function isSuperAdmin() {
       return isSignedIn() && myRole() == 'superadmin';
@@ -37,9 +37,19 @@ service cloud.firestore {
     function selfActor() {
       return request.resource.data.actor_uid == request.auth.uid;
     }
+    function graceHours(sub) {
+      return sub.get('grace_hours', 24) is int ? sub.get('grace_hours', 24) : 24;
+    }
+    function subscriptionInDate(sub) {
+      return !(sub.get('expiry_date', null) is timestamp) ||
+             request.time < sub.expiry_date + duration.value(graceHours(sub), 'h');
+    }
     function gymIsOperational(gymId) {
       let g = get(/databases/$(database)/documents/gyms/$(gymId)).data;
-      return g.get('status', '') == 'active' && g.get(['subscription', 'locked'], false) != true;
+      let sub = g.get('subscription', {});
+      return g.get('status', '') == 'active' &&
+             sub.get('locked', false) != true &&
+             subscriptionInDate(sub);
     }
     function unchangedRoleAndGym() {
       return request.resource.data.get('role', '') == resource.data.get('role', '') &&

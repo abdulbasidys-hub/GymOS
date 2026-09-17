@@ -31,6 +31,57 @@ to build, publish the installer and point the Uploads page at it.
 
 ---
 
+## 1.0.1 — 17 September 2026
+
+Fixes found in a pre-launch audit. Nothing new to learn; three things that
+could have bitten a paying gym.
+
+### An expired subscription now actually stops the gym
+
+The security rules only ever checked the manual `locked` flag — they never
+looked at the expiry date — and the web app locked on that same flag alone.
+So a subscription that simply ran out kept working on the web indefinitely,
+until somebody noticed and switched it off by hand. Only the offline desk
+app enforced the date.
+
+Free trials turned that from an edge case into the normal path: **every
+trial handed out would have run forever.** The server now refuses a gym once
+it is past its expiry date plus its grace window, and the web app locks with
+the same screen the desk app already showed.
+
+The check is deliberately fail-open: a gym with no subscription, or with an
+expiry that isn't a real date, stays working. Only a genuine timestamp in
+the past locks anything.
+
+### Multi-branch owners could be locked out of their own gym
+
+Access is resolved from an owner's `gym_ids` array whenever that field
+exists — the scalar `gym_id` is not consulted. Two ways that array could
+stop containing the owner's own gym:
+
+- `addBranchToOwner` called `arrayUnion(newGymId)`, and `arrayUnion` on a
+  field that doesn't exist yet creates it containing only what you pass. For
+  an owner predating the field, adding a second branch replaced their list
+  with just the new branch and dropped the gym they were already running.
+- Deleting a branch never removed its id from any owner's array, leaving it
+  pointing at a gym that no longer existed.
+
+Either way the app pointed its screens at one gym while the server
+authorised another, so the owner got "permission denied" on everything with
+nothing on screen to explain it. Both causes are fixed, the rules now always
+include the scalar `gym_id` as a safety net, and
+`scripts/repair-owner-gym-ids.mjs` reports and repairs accounts already
+damaged (dry run by default).
+
+### "Couldn't load this member" on a page that loaded fine
+
+Every gym-scoped screen fired its queries from an effect before the active
+gym had been resolved — `gymId` was null for one render after sign-in. The
+queries were denied, each screen retried, and whichever attempt settled last
+won. A refresh could leave a perfectly good page wearing an error banner.
+The active gym is now resolved from the first render, which closes the
+window for all sixteen screens at once rather than patching them one by one.
+
 ## 1.0.0 — 16 September 2026
 
 First packaged release. Live on the web at **gymos.africa**, with the Windows
@@ -94,13 +145,11 @@ desk app published as a GitHub Release.
 
 ### Known issues
 
-- Opening a member's profile by direct URL briefly shows *"Couldn't load this
-  member."* even though the page loads. The first load starts before the
-  active gym is known, and its error arrives after the successful retry.
-  Reaching the page the normal way — clicking a row — is unaffected.
 - The affiliate Settings page has not been exercised against a live affiliate
   account; it builds and mirrors the desk Settings page, but no one has
   signed in and used it.
-- `gym_ids` on an owner account can point at a gym the owner doesn't own,
-  which denies them everything with no useful error. Seen on one demo
-  account. Worth a guard so `gym_ids` always contains `gym_id`.
+- One case is unverified by testing: a gym with a **valid future** expiry
+  date. The no-subscription case was confirmed against the live project, and
+  the rule is written to fail open, but the Firestore emulator needs Java,
+  which isn't installed here. Worth one manual check with a real
+  subscription before relying on it.
