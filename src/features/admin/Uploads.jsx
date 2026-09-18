@@ -140,7 +140,7 @@ function KindEditor({ kind, entry, onChanged }) {
               />
             </label>
             <label className="field">
-              <span>File name shown to the customer (optional)</span>
+              <span>File name it saves as (optional)</span>
               <input
                 value={fileName}
                 onChange={(e) => setFileName(e.target.value)}

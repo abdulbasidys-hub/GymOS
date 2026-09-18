@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth";
 import { DOWNLOAD_KINDS, listDownloads } from "../data";
-import { formatDateTime } from "../lib/helpers";
 
 // Self-service downloads for owners and receptionists: the desktop
 // installer, and the PDF guide for whichever role is signed in. The point
@@ -14,11 +13,6 @@ import { formatDateTime } from "../lib/helpers";
 // already describes. An owner sees the app plus the owner's guide (which
 // covers the front desk too, so they can train their own staff); a
 // receptionist sees the app plus the front-desk guide only.
-function formatSize(bytes) {
-  if (!bytes) return null;
-  const mb = bytes / (1024 * 1024);
-  return mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
-}
 
 // `embedded` drops the page heading and the outer card so this can sit as a
 // section inside another page — which is how the front desk reaches it on a
@@ -76,20 +70,12 @@ export default function DownloadsPage({ embedded = false }) {
             <div className="download-row" key={kind.id}>
               <div className="download-row__text">
                 <h3>{kind.label}</h3>
-                {entry ? (
-                  <p className="muted">
-                    {[
-                      entry.version && `Version ${entry.version}`,
-                      entry.file_name,
-                      formatSize(entry.size_bytes),
-                      entry.updated_at && `Updated ${formatDateTime(entry.updated_at)}`,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
-                ) : (
-                  <p className="muted">Not available yet — check back shortly.</p>
-                )}
+                {/* Deliberately only a title and a button. The version,
+                    file name, size and upload date were shown here and are
+                    gone on purpose: none of them change what the person
+                    does next, which is press Download. The one line kept is
+                    the one that explains a button that cannot be pressed. */}
+                {!entry && <p className="muted">Not available yet — check back shortly.</p>}
                 {entry?.notes && <p className="muted hint">{entry.notes}</p>}
               </div>
               {entry?.url ? (
