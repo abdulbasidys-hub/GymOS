@@ -1484,7 +1484,9 @@ scoped as separate future work.**
    offline, capped at 14 days since that person's last online sign-in
    there. Plus: 30-minute idle auto-logout, on **every** platform and
    role (the user's explicit choice — this also changes the live web
-   app's session behavior, not just Electron's).
+   app's session behavior, not just Electron's). Later amended for one
+   case only: **6 hours on a phone or tablet running the installed app**
+   (see "Handheld session length" at the end of this item).
 
    **The necessary, honestly-stated caveat:** Firebase never exposes
    password hashes to any client, so there is no way to pre-authorize a
@@ -1559,6 +1561,24 @@ scoped as separate future work.**
    mirrors it into `local_session.last_activity_at`, via a new
    `touchLocalSessionActivity` op) and re-checking elapsed time on
    `visibilitychange`/window `focus`, not by the timer alone.
+
+   **Handheld session length (later amendment, requested directly):** 30
+   minutes was written for a screen somebody else can walk up to — a desk
+   PC, an office laptop, a tab left open on a shared machine. It is the
+   wrong number for a gym that runs reception off a phone because it has
+   no laptop, which the user expects to be the common case. A backgrounded
+   PWA receives no activity events, so every quiet half hour costs a fresh
+   password entry; over a shift that is the whole day. `idleTimeoutMs()`
+   in `useIdleTimeout.js` now returns **6 hours** when `isInstalledApp()`
+   is true, Electron is not, and `(pointer: coarse)` matches — i.e. the
+   home-screen app on a phone or tablet, nothing else. Electron keeps 30
+   minutes (it *is* the desk machine the rule was written for), as does a
+   plain mobile browser tab and a desktop-installed PWA; the pointer query
+   is what separates that last one out. Evaluated per call rather than at
+   import, matching `isInstalledApp()`'s own reasoning. Nothing else about
+   the session changed — Firebase's own persistence already survived an
+   app close on the web, so the idle timeout was the only thing that had
+   been forcing those re-logins.
 
    **Sync implication, stated plainly (not silently papered over):** a
    session established via the offline-verification path has no real

@@ -1,6 +1,7 @@
-// Signs the user out after 30 minutes of no mouse/keyboard/touch activity
+// Signs the user out after a stretch of no mouse/keyboard/touch activity
 // (BUILD.md §15) — an unattended signed-in desk or browser tab shouldn't
-// stay usable indefinitely. Universal: every platform, every role.
+// stay usable indefinitely. Every platform, every role; the length of that
+// stretch is the one thing that differs (see idleTimeoutMs below).
 //
 // A plain setTimeout alone can't catch a laptop that SLEPT through the
 // window — timers don't run while the OS suspends the process, but wall-
@@ -14,8 +15,38 @@
 
 import { useEffect, useRef } from "react";
 import { localInvoke } from "../data/local/bridge";
+import { isInstalledApp } from "../lib/standalone";
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+const HANDHELD_IDLE_TIMEOUT_MS = 6 * 60 * 60 * 1000;
+
+/** How long this device is allowed to sit untouched before it signs itself
+ *  out. 30 minutes everywhere except one case: GymOS installed to the home
+ *  screen of a phone or tablet, where it's 6 hours.
+ *
+ *  Why that case is different. The 30 minutes exists for a screen somebody
+ *  can walk up to — a desk PC, an office laptop, a browser tab left open on
+ *  a shared machine. A phone is not that screen: it's one person's, it's in
+ *  a pocket or face-down on the counter, and it has its own lock. What 30
+ *  minutes actually buys on a phone is a re-login every single time the
+ *  reception picks it up after a quiet half-hour, because a backgrounded app
+ *  receives no activity events — and for a gym running the front desk off a
+ *  phone rather than a laptop, that is the whole day. 6 hours covers a shift.
+ *
+ *  Deliberately NOT extended to: Electron (that's the desk machine the rule
+ *  was written for), a plain mobile browser tab (not the app, and a tab can
+ *  be left open on anything), and the PWA installed on a desktop — same
+ *  shared-screen risk as Electron, which is what the pointer check below
+ *  separates out. Evaluated per call, like isInstalledApp() itself, rather
+ *  than frozen into a module constant at import time. */
+function idleTimeoutMs() {
+  if (window.gymOS?.isElectron) return IDLE_TIMEOUT_MS;
+  if (!isInstalledApp()) return IDLE_TIMEOUT_MS;
+  // Touch-primary — a phone or tablet, not a desktop-installed PWA. If the
+  // browser can't answer, the shorter timeout is the safe way to be wrong.
+  const handheld = window.matchMedia?.("(pointer: coarse)")?.matches === true;
+  return handheld ? HANDHELD_IDLE_TIMEOUT_MS : IDLE_TIMEOUT_MS;
+}
 const ACTIVITY_EVENTS = ["mousemove", "keydown", "click", "scroll", "touchstart"];
 const WRITE_THROTTLE_MS = 5000; // don't hammer localStorage/IPC on every single mousemove
 const STORAGE_KEY = "gymos.lastActivityAt";
@@ -50,7 +81,7 @@ export function useIdleTimeout(active, onTimeout) {
 
     function scheduleFrom(lastActivityAt) {
       clearTimeout(timerRef.current);
-      const remaining = IDLE_TIMEOUT_MS - (Date.now() - lastActivityAt);
+      const remaining = idleTimeoutMs() - (Date.now() - lastActivityAt);
       if (remaining <= 0) {
         onTimeoutRef.current();
         return;
@@ -71,7 +102,7 @@ export function useIdleTimeout(active, onTimeout) {
     function recheckAfterPossibleSleep() {
       if (document.visibilityState !== "visible") return;
       const last = readLastActivity();
-      if (Date.now() - last >= IDLE_TIMEOUT_MS) onTimeoutRef.current();
+      if (Date.now() - last >= idleTimeoutMs()) onTimeoutRef.current();
       else scheduleFrom(last);
     }
 

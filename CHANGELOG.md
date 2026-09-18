@@ -31,6 +31,29 @@ to build, publish the installer and point the Uploads page at it.
 
 ---
 
+## 1.1.0 — 18 September 2026
+
+### A phone at the desk stays signed in for the shift
+
+GymOS signs an untouched screen out after 30 minutes. On a computer that is
+right: an office screen left open all afternoon should not still be signed
+in. On a phone it was quietly punishing — a phone spends most of its day in
+a pocket with the app closed, and a closed app counts as untouched, so a
+reception running the desk off a phone was re-typing the password every time
+the gym went quiet for half an hour.
+
+**On a phone or tablet, with GymOS installed to the home screen, the wait is
+now 6 hours.** Closing and reopening the app does not sign anyone out; only
+6 hours with nobody using it does. Everything else keeps its 30 minutes: the
+desk app, GymOS in a browser on any device, and GymOS installed on a desktop
+— those are all screens somebody else can walk up to, and a phone, which
+belongs to one person and has its own lock, is not.
+
+Nothing changed about signing in, and nothing changed about the sign-out
+button — if somebody else is taking over the desk, still use it.
+
+---
+
 ## 1.0.1 — 17 September 2026
 
 Fixes found in a pre-launch audit. Nothing new to learn; three things that
