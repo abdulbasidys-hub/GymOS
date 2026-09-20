@@ -1988,8 +1988,11 @@ fields, member photos:**
   public-read carve-out is reverted (that doc doesn't exist anymore).
   `platform_plans` itself is now `allow read: if true` — the one publicly
   readable collection in this database — while `create`/`update` stay
-  superadmin-only. **Still needs deploying** (no `firebase.json`/CLI
-  project config exists in this repo, so rules changes here are pasted
+  superadmin-only. **Still needs deploying** — historical note, since
+  resolved: a `firebase.json` now exists and rules deploy with
+  `npx firebase deploy --only firestore:rules` (done §26). At the time, no
+  `firebase.json`/CLI
+  project config existed in this repo, so rules changes here were pasted
   into the Firebase console by the user, not `firebase deploy`'d — same as
   every previous rules change in this document).
 - **Member photos.** `photo_url` (reserved in the schema since before this
@@ -2150,7 +2153,9 @@ downstream reacts on its own.
 **Two things the user needs to do that no code change can:**
 - Paste the updated `firestore.rules` into the Firebase console (no
   `firebase.json`/CLI project exists here — same as every previous rules
-  change this session).
+  change this session). **Superseded:** a `firebase.json` exists now, so this
+  is `npx firebase deploy --only firestore:rules`; the rules in this repo were
+  deployed that way in §26.
 - Run `scripts/migrate-multi-branch-owners.mjs` **together with** that
   rules deploy, not after — an owner doc still missing `gym_ids` when the
   new `array-contains` query goes live simply won't be found by
@@ -2882,9 +2887,17 @@ thing noticed after the transfer window closes.
 receptionists got the installer. `roles: ["owner"]` never gave them one — the
 doc was wrong, not the code.
 
-**Still outstanding from §25:** `firestore.rules` is not deployed. It now
-carries both the commission cap and this whitelist change; verified compiling
-with `--dry-run`.
+**Rules deployed** (`npx firebase deploy --only firestore:rules`, to
+`gymos-30db3`), carrying everything that had accumulated undeployed: §20's
+`gymIsOperational` fix, 1.0.1's expiry enforcement, §25's commission cap and
+this `account_name` whitelist. Note what that means for the first time in
+production: a gym past its expiry date plus grace is now refused
+SERVER-side, not merely shown a locked screen — so any test gym sitting past
+its expiry stops serving data until its subscription is extended.
+
+The BUILD.md notes telling the user to paste rules into the Firebase console
+(§18, §20) predate `firebase.json` existing and are marked superseded where
+they appear.
 
 ---
 
