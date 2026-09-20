@@ -6,6 +6,8 @@ import {
   listStaff,
   listAttendanceByGym,
   listRecentAdminActivity,
+  listGymEnquiries,
+  listAffiliateApplications,
 } from "../../data";
 import ExpandableActivity from "../../components/ExpandableActivity";
 import { licenseStatus, daysRemaining } from "../../logic/license";
@@ -22,6 +24,27 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [stats, setStats] = useState(null);
+  // Waiting enquiries, loaded separately from the big stats bundle on
+  // purpose: these two reads must not be able to take the whole dashboard
+  // down with them, and an empty inbox is a perfectly good default. A silent
+  // catch is right here — the card simply shows nothing waiting.
+  const [waiting, setWaiting] = useState({ gyms: 0, affiliates: 0 });
+
+  useEffect(() => {
+    let alive = true;
+    Promise.all([listGymEnquiries(), listAffiliateApplications()])
+      .then(([enquiries, applications]) => {
+        if (!alive) return;
+        setWaiting({
+          gyms: enquiries.filter((e) => !e.handled).length,
+          affiliates: applications.filter((a) => !a.handled).length,
+        });
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -170,6 +193,39 @@ export default function Dashboard() {
           )}
         />
       </div>
+
+      {/* Unanswered post, surfaced where super-admin actually looks.
+          The Inbox nav entry alone is not enough: a page you have to remember
+          to open is a page that gets forgotten, and a gym that filled in the
+          contact form is a sale waiting on a reply. Only rendered when
+          something is actually waiting — a permanent "0 waiting" card trains
+          you to stop seeing it. */}
+      {(waiting.gyms > 0 || waiting.affiliates > 0) && (
+        <div
+          className="card card--link"
+          onClick={() => navigate(waiting.gyms > 0 ? "/admin/inbox" : "/admin/inbox/affiliates")}
+        >
+          <div className="status-block__head">
+            <h2>Waiting on you</h2>
+            <span className="muted">Open inbox &rarr;</span>
+          </div>
+          <p>
+            {waiting.gyms > 0 && (
+              <>
+                <strong>{waiting.gyms}</strong> gym {waiting.gyms === 1 ? "enquiry" : "enquiries"}
+              </>
+            )}
+            {waiting.gyms > 0 && waiting.affiliates > 0 && " and "}
+            {waiting.affiliates > 0 && (
+              <>
+                <strong>{waiting.affiliates}</strong>{" "}
+                {waiting.affiliates === 1 ? "affiliate application" : "affiliate applications"}
+              </>
+            )}{" "}
+            {waiting.gyms + waiting.affiliates === 1 ? "has" : "have"} had no reply yet.
+          </p>
+        </div>
+      )}
 
       <div className="card card--link" onClick={() => navigate("/admin/attention")}>
         <div className="status-block__head">

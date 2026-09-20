@@ -31,6 +31,27 @@ service firebase.storage {
       allow delete: if isSuperAdmin() || (isReceptionist() && inMyGym(gymId));
     }
 
+    // Photos attached to a "Become an affiliate" application
+    // (data/enquiries.js). The one path in this bucket an anonymous request
+    // can write to, because an applicant has no account yet.
+    //
+    // `create` only, deliberately — not `write`. With `write` an anonymous
+    // request could overwrite an existing object, so anyone who learned a
+    // path could replace somebody else's photo. Restricted to create, a
+    // collision fails instead, and the filename is a random UUID anyway.
+    //
+    // No public READ, which is why the application document stores the PATH
+    // rather than a download URL: getDownloadURL() is itself a read, so the
+    // applicant can't resolve one, and super-admin resolves it when the
+    // Inbox renders the photo. If read were public, every applicant's photo
+    // would be fetchable by anyone who guessed a URL.
+    match /affiliate_photos/{fileName} {
+      allow read: if isSuperAdmin();
+      allow create: if request.resource.size < 5 * 1024 * 1024
+                    && request.resource.contentType.matches('image/.*');
+      allow update, delete: if isSuperAdmin();
+    }
+
     match /downloads/{fileName} {
       allow read: if isSignedIn();
       allow write, delete: if isSuperAdmin();

@@ -8,6 +8,11 @@ const NAV = [
   { to: "/product", label: "Product" },
   { to: "/pricing", label: "Pricing" },
   { to: "/contact", label: "Contact" },
+  // Marketers are how gyms get found, so the way in is a top-level
+  // destination rather than something buried on the contact page. It's last:
+  // a visitor here to buy the product shouldn't meet "come and sell it"
+  // before "what is it".
+  { to: "/become-an-affiliate", label: "Affiliates" },
 ];
 
 // Public marketing-site header — separate from the signed-in app's

@@ -3,7 +3,7 @@ import { useAuth } from "../../auth";
 import Logo from "../../components/Logo";
 import ThemeToggle from "../../components/ThemeToggle";
 import NavMore from "../../components/NavMore";
-import { IconDashboard, IconBuilding, IconCard, IconChart, IconMegaphone, IconSync, IconGear, IconUpload, IconLogout } from "../../components/NavIcons";
+import { IconDashboard, IconBuilding, IconCard, IconChart, IconMegaphone, IconInbox, IconSync, IconGear, IconUpload, IconLogout } from "../../components/NavIcons";
 import Dashboard from "./Dashboard";
 import GymsList from "./GymsList";
 import GymDetailPage from "./GymDetailPage";
@@ -14,6 +14,7 @@ import SyncMonitor from "./SyncMonitor";
 import Settings from "./Settings";
 import Uploads from "./Uploads";
 import AttentionPage from "./AttentionPage";
+import Inbox from "./Inbox";
 import MarketersList from "./MarketersList";
 import MarketersRevenue from "./MarketersRevenue";
 import AffiliateDetailPage from "./AffiliateDetailPage";
@@ -29,6 +30,11 @@ const NAV = [
   { to: "/admin/subscriptions", label: "Subscriptions", Icon: IconCard },
   { to: "/admin/revenue", label: "Revenue", Icon: IconChart },
   { to: "/admin/marketers", label: "Marketers", Icon: IconMegaphone },
+  // Everything strangers send us — gym enquiries and affiliate applications.
+  // High in the list, above the operational pages, because an unanswered
+  // enquiry is a lost sale and the whole point of the page is that it gets
+  // looked at.
+  { to: "/admin/inbox", label: "Inbox", Icon: IconInbox },
   { to: "/admin/sync", label: "Sync Monitor", Icon: IconSync },
   { to: "/admin/uploads", label: "Uploads", Icon: IconUpload },
   { to: "/admin/settings", label: "Settings", Icon: IconGear },
@@ -104,6 +110,8 @@ export default function AdminDashboard() {
             <Route path="marketers" element={<MarketersList />} />
             <Route path="marketers/revenue" element={<MarketersRevenue />} />
             <Route path="marketers/:affiliateId" element={<AffiliateDetailPage />} />
+            <Route path="inbox" element={<Inbox tab="gyms" />} />
+            <Route path="inbox/affiliates" element={<Inbox tab="affiliates" />} />
             <Route path="sync" element={<SyncMonitor />} />
             <Route path="uploads" element={<Uploads />} />
             <Route path="settings" element={<Settings />} />

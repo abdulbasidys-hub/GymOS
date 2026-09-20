@@ -63,6 +63,47 @@ service cloud.firestore {
     function commissionWithinCap(value) {
       return value == null || (value is number && value >= 0 && value <= 50);
     }
+    // ---- public enquiry validation (data/enquiries.js) ----
+    // gym_enquiries and affiliate_applications are the ONLY collections a
+    // signed-OUT request can write to, because the people who use them
+    // cannot sign in yet. So they get the strictest create rule in the file
+    // rather than the loosest.
+    //
+    // A sender cannot: add a field we didn't ask for (hasOnly), omit one we
+    // need (hasAll), send a non-string, send an over-long string, mark their
+    // own enquiry handled, or set created_at to anything but the server's
+    // clock. No read, no update, no delete for them either — once it's sent
+    // it is ours.
+    //
+    // What this does NOT stop is volume: rules cannot rate-limit. Firebase
+    // App Check is the answer to that and is console-side.
+    function str(value, maxLen) {
+      return value is string && value.size() > 0 && value.size() <= maxLen;
+    }
+    function freshUnhandled(data) {
+      return data.handled == false && data.created_at == request.time;
+    }
+    function gymEnquiryValid(data) {
+      return data.keys().hasOnly(['name', 'gym_name', 'email', 'message', 'handled', 'created_at']) &&
+             data.keys().hasAll(['name', 'gym_name', 'email', 'message', 'handled', 'created_at']) &&
+             str(data.name, 120) && str(data.gym_name, 120) &&
+             str(data.email, 160) && str(data.message, 2000) &&
+             freshUnhandled(data);
+    }
+    function affiliateApplicationValid(data) {
+      return data.keys().hasOnly(['name', 'phone', 'email', 'photo_path', 'handled', 'created_at']) &&
+             data.keys().hasAll(['name', 'phone', 'email', 'photo_path', 'handled', 'created_at']) &&
+             str(data.name, 120) && str(data.phone, 40) && str(data.email, 160) &&
+             // Pinned to the folder storage.rules opens for public upload, so
+             // a document can't point at some other object in the bucket.
+             data.photo_path is string &&
+             data.photo_path.matches('affiliate_photos/[A-Za-z0-9-]{1,64}') &&
+             freshUnhandled(data);
+    }
+    function onlyHandledChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['handled']) &&
+             request.resource.data.handled is bool;
+    }
     function gymAffiliateId(gymId) {
       return get(/databases/$(database)/documents/gyms/$(gymId)).data.get('affiliate_id', '');
     }
@@ -116,6 +157,20 @@ service cloud.firestore {
       allow read: if isSuperAdmin();
       allow create, update: if isSuperAdmin() &&
         commissionWithinCap(request.resource.data.get('affiliate_commission_percent', null));
+    }
+
+    match /gym_enquiries/{id} {
+      allow create: if gymEnquiryValid(request.resource.data);
+      allow read, delete: if isSuperAdmin();
+      // Super-admin only ever ticks it off; the sender's own words stay as
+      // they wrote them.
+      allow update: if isSuperAdmin() && onlyHandledChanged();
+    }
+
+    match /affiliate_applications/{id} {
+      allow create: if affiliateApplicationValid(request.resource.data);
+      allow read, delete: if isSuperAdmin();
+      allow update: if isSuperAdmin() && onlyHandledChanged();
     }
 
     match /downloads/{id} {

@@ -1807,7 +1807,8 @@ this session:
 
 ## 17. Public marketing website
 
-A separate, public-facing site — Home / Product / Pricing / Contact — lives
+A separate, public-facing site — Home / Product / Pricing / Contact /
+Affiliates (§27) — lives
 alongside the app itself and shares its auth/router, but is content
 otherwise unrelated to gym operations. Built from a Stitch export the user
 dropped in `Downloads/GymOS Website` (4 zip files, one screen each).
@@ -1831,8 +1832,8 @@ reuses the real `.verdict`/`.stat-card`/`.pill`/`.table` classes verbatim
 
 **Files:**
 - `src/components/website/WebsiteHeader.jsx` / `WebsiteFooter.jsx` /
-  `WebsiteLayout.jsx` — sticky nav (Home/Product/Pricing/Contact +
-  ThemeToggle + Sign in), footer with the same nav repeated + copyright.
+  `WebsiteLayout.jsx` — sticky nav (Home/Product/Pricing/Contact/Affiliates
+  + ThemeToggle + Sign in), footer with the same nav repeated + copyright.
   Mobile nav collapses behind a burger under 760px (CSS `max-height`
   toggle, no animation library).
 - `src/components/website/WebsiteIcons.jsx` — small site-only icons (bolt,
@@ -1888,6 +1889,11 @@ directly rather than assumed): it's UI only for now. `onSubmit` just calls
 `preventDefault()`; nothing is sent anywhere, no Firestore collection, no
 email service. Wiring it up (mailto vs. a new `contact_requests` Firestore
 collection vs. a real mail service) is a future task, not started.
+
+> **RESOLVED in §27 (2026-09-21).** It now writes to `gym_enquiries` and
+> super-admin reads it on Inbox. Everything submitted between the site going
+> live and that date was silently discarded — there is no recovering it,
+> because it was never sent anywhere.
 
 **Update (2026-08-28) — card identity unified with the app, dynamic
 pricing, copy cleanup:**
@@ -2898,6 +2904,88 @@ its expiry stops serving data until its subscription is extended.
 The BUILD.md notes telling the user to paste rules into the Firebase console
 (§18, §20) predate `firebase.json` existing and are marked superseded where
 they appear.
+
+---
+
+## 27. The contact form reaches us, and a way to apply as a marketer (2026-09-21)
+
+**The bug underneath the feature request.** Asked how gyms reach us after
+filling in the Contact page, the answer was: they don't. `onSubmit` called
+`preventDefault()` and stopped — §17 recorded this as a deliberate
+"UI only for now", and it stayed that way through the site going live. Every
+enquiry ever submitted was discarded at the moment of submission, and the
+sender saw no error either, so nobody could have known. None of it is
+recoverable; it was never anywhere.
+
+**Two collections, one Inbox.** `gym_enquiries` (name, gym, email, message)
+from Contact; `affiliate_applications` (name, phone, email, photo) from a new
+`/become-an-affiliate` page. Super-admin reads both under one nav entry with
+two tabs, the same shape as Marketers. `handled` rather than "read" is the
+state that matters — whether anyone actually got back to them, not whether
+the row was opened — and it's the only field super-admin can change, so the
+sender's own words stay as they wrote them.
+
+**Field set, decided by the user when asked:** name, phone, email, photo, and
+nothing else. Bank details and "how will you market" were offered and
+declined — a longer form filters out people who would have been fine, and
+neither is needed to judge an applicant or make their welcome flier. Alerts:
+in-app inbox only, no email (that would need a mail provider, an API key and
+Blaze billing).
+
+**These are the first public writes in the database**, and that is the part
+worth reading twice. Every other collection requires a signed-in account;
+these two must accept a document from someone who has none, because the
+people using them cannot sign in yet. So they got the strictest create rule
+in the file rather than the loosest: an exact field whitelist (`hasOnly` plus
+`hasAll`), a type and a length cap on every string, `handled` forced to
+`false`, `created_at` forced to `request.time`, and `photo_path` pinned by
+regex to the one Storage folder public upload is open on. No read, no update,
+no delete for the sender — once sent, it is ours.
+
+**Verified against the live project as a genuinely anonymous client**, not
+reasoned about: a valid enquiry is accepted; reading the inbox, pre-setting
+`handled: true`, adding an unexpected field, omitting a required one,
+exceeding the message cap, backdating `created_at`, editing what was already
+sent, and pointing `photo_path` at `downloads/` are all denied. Nine checks,
+all passing. The test left one row in the inbox (`RULES TEST - delete me`),
+deletable from the page.
+
+**What the rules still cannot do: rate-limit.** Anyone who finds the endpoint
+can submit repeatedly. The answer is Firebase App Check, which is console-side
+setup, not code. Until then the exposure is junk rows in an inbox — no read
+access, no cost beyond writes, delete is one button — which is annoying
+rather than dangerous. Worth doing before the site gets any real traffic.
+
+**The photo stores a PATH, not a URL**, and that is deliberate.
+`getDownloadURL()` is itself a read; the applicant has write-only access to
+`affiliate_photos/`, because public read there would make every applicant's
+photo fetchable by anyone who guessed a URL. So the document keeps the path
+and super-admin resolves it when the Inbox renders. Storage grants `create`
+rather than `write` for the same reason — with `write`, an anonymous request
+could overwrite an existing object; with `create`, a collision fails instead
+(and filenames are random UUIDs anyway). Upload happens BEFORE the document
+is created, so there is never a public UPDATE to attach the photo afterwards;
+the cost is an orphaned image if someone abandons the form half-way, which is
+cheaper than an update rule a stranger can reach.
+
+**Found where it would actually be seen.** A nav entry alone is a page you
+forget to open, and an unanswered enquiry is a lost sale, so the admin
+Dashboard grew a "Waiting on you" card — the same `card--link` device the
+"Gyms Needing Attention" block already uses — rendered only when something is
+actually waiting, since a permanent "0 waiting" trains you to stop seeing it.
+Its two reads are loaded separately from the dashboard's main stats bundle and
+fail silently, so the inbox can never take the dashboard down with it.
+
+**Accepting somebody** is deliberately still the existing "Register a
+marketer" flow (the application row links to it) rather than a one-click
+approve that creates an account from the application. Account creation already
+has one path, with its own username rules and temp-password handoff, and a
+second path into it would be a second place for that to go wrong. Once
+registered, the marketer sets their own payout details (§26), including the
+account name.
+
+**Rules deployed** (firestore + storage), since the forms are inert without
+them.
 
 ---
 

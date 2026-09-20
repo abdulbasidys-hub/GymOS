@@ -2189,6 +2189,57 @@ select option { background: var(--surface); color: var(--text); }
 .download-row__text h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
 .download-row__text p { font-size: 13px; }
 
+/* -- inbox rows (admin/Inbox.jsx) --
+   Same skeleton as .download-row above (a stack of flex rows separated by a
+   hairline, no boxes) rather than a table: an enquiry's body is a paragraph
+   of someone's own prose, which a table cell cannot hold at a readable
+   width, and an application carries a photo. Kept as its own class instead
+   of reusing .download-row because these rows have a third element the
+   downloads list never has — the photo — and a handled state. */
+.enquiry-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 18px 0;
+}
+.enquiry-row + .enquiry-row { border-top: 1px solid var(--border); }
+.enquiry-row:first-child { padding-top: 0; }
+.enquiry-row:last-child { padding-bottom: 0; }
+.enquiry-row__text { flex: 1; min-width: 220px; }
+.enquiry-row__text h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.enquiry-row__text p { font-size: 13px; }
+
+/* Dealt with, not gone. Faded rather than hidden or moved: an enquiry you
+   answered is still the record of a conversation, and a list that silently
+   reorders itself when you press a button is disorienting. Opacity alone
+   would take the buttons with it, so only the text dims. */
+.enquiry-row--handled .enquiry-row__text,
+.enquiry-row--handled .enquiry-photo { opacity: 0.45; }
+
+/* pre-wrap keeps the paragraphs the sender actually typed. max-width caps
+   the measure at something readable on a wide screen — a 1400px-wide line
+   of body text is hard to track back from. */
+.enquiry-message {
+  white-space: pre-wrap;
+  margin-top: 8px;
+  max-width: 68ch;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.enquiry-photo {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius);
+  object-fit: cover;
+  border: 1px solid var(--border);
+  display: block;
+}
+/* Holds the row's shape while a URL resolves, and for an application whose
+   photo has gone missing — without it the text jumps sideways on load. */
+.enquiry-photo--empty { background: var(--surface-2, rgba(127, 127, 127, 0.12)); }
+
 /* Reassurance under the pricing cards (Pricing.jsx). Sized below
    .site-section__title's 26px so it reads as a footnote to the tiers
    rather than a new section competing with them, and given real top
@@ -2323,6 +2374,11 @@ select option { background: var(--surface); color: var(--text); }
 .site-contact-card { padding-top: 4px; }
 .site-contact-card h3 { font-size: 17px; font-weight: 700; padding-bottom: 14px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
 .site-contact-card p { color: var(--text-secondary); font-size: 14px; line-height: 1.6; margin-bottom: 18px; }
+/* A SECOND heading inside the same card (Contact's "Want to sell GymOS?",
+   Become-an-affiliate's "Already a marketer?"). The first h3 sits at the top
+   of the card so it needs no space above it; a later one follows a button and
+   would otherwise collide with it. */
+.site-contact-card__next { margin-top: 26px; }
 
 /* -- footer -- */
 .site-footer { border-top: 1px solid var(--border); margin-top: 24px; }

@@ -112,3 +112,16 @@ export {
   uploadDownload,
   removeDownload,
 } from "./downloads";
+export {
+  GYM_ENQUIRIES,
+  AFFILIATE_APPLICATIONS,
+  LIMITS as ENQUIRY_LIMITS,
+  submitGymEnquiry,
+  uploadApplicantPhoto,
+  submitAffiliateApplication,
+  listGymEnquiries,
+  listAffiliateApplications,
+  setEnquiryHandled,
+  applicantPhotoUrl,
+  deleteEnquiry,
+} from "./enquiries";

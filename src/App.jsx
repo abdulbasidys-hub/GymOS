@@ -27,6 +27,7 @@ import MarketingHome from "./features/website/MarketingHome";
 import Product from "./features/website/Product";
 import Pricing from "./features/website/Pricing";
 import Contact from "./features/website/Contact";
+import BecomeAffiliate from "./features/website/BecomeAffiliate";
 
 function Splash({ text = "Loading…" }) {
   return (
@@ -109,7 +110,7 @@ function Home() {
 // cleaner URLs unchanged.
 const Router = window.gymOS?.isElectron ? HashRouter : BrowserRouter;
 
-// The three marketing pages, kept out of the installed app.
+// The marketing pages, kept out of the installed app.
 //
 // The PWA's scope is the whole origin (public/manifest.webmanifest), which
 // it has to be — anything narrower would push /desk and /owner out of the
@@ -163,6 +164,10 @@ export default function App() {
             <Route path="/product" element={<PublicSite><Product /></PublicSite>} />
             <Route path="/pricing" element={<PublicSite><Pricing /></PublicSite>} />
             <Route path="/contact" element={<PublicSite><Contact /></PublicSite>} />
+            <Route
+              path="/become-an-affiliate"
+              element={<PublicSite><BecomeAffiliate /></PublicSite>}
+            />
             <Route path="*" element={<Home />} />
           </Routes>
         </Router>

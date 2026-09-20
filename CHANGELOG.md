@@ -53,6 +53,30 @@ The check is deliberately fail-open: a gym with no subscription, or with an
 expiry that isn't a real date, stays working. Only a genuine timestamp in
 the past locks anything.
 
+### Contact form messages now actually reach us
+
+**This was broken, and silently.** The Contact page on the website looked
+like it worked — you filled it in, pressed Send, and the page accepted it —
+but nothing was ever sent or stored. Every enquiry submitted since the site
+went live was discarded, with no error shown to the sender. None of it can be
+recovered, because it was never anywhere.
+
+Messages now arrive in a new **Inbox** page for super admin, newest first,
+with the sender's email as a one-tap reply link. Mark one handled once you've
+got back to them, and it stops counting as waiting. Anything still waiting
+also shows on the dashboard, so an unanswered enquiry is hard to miss.
+
+### People can apply to become an affiliate
+
+A new **Become an affiliate** page on the website, linked from the site nav
+and the Contact page. An applicant gives their name, phone, email and a
+photo — the photo is for their welcome flier, and the form says so, since
+people send the wrong kind of picture when they don't know what it's for.
+
+Applications land in the Inbox on their own tab, photo included, openable at
+full size. Accepting somebody is still the existing "Register a marketer"
+step, which is what creates their account and temporary password.
+
 ### Marketers can download the app and both guides themselves
 
 The affiliate portal has a **Downloads** tab: the desktop installer and both
