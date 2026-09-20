@@ -48,6 +48,7 @@ export {
   setUserActive,
   setUserPhone,
   setUserEmail,
+  setAffiliateCommissionOverride,
   setAffiliateBankDetails,
 } from "./users";
 export {

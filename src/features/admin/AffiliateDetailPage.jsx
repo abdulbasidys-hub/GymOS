@@ -5,10 +5,19 @@ import {
   listGymsByAffiliate,
   listEarningsByAffiliate,
   setUserActive,
+  getPlatformSettings,
+  setAffiliateCommissionOverride,
 } from "../../data";
+import Modal from "../../components/Modal";
 import StatusBadge from "../../components/StatusBadge";
 import PhoneNumber from "../../components/PhoneNumber";
 import { naira, formatDate, formatDateTime, toDate } from "../../lib/helpers";
+import {
+  MAX_COMMISSION_PERCENT,
+  commissionOptions,
+  hasOwnCommissionRate,
+  resolveCommissionPercent,
+} from "../../logic/commission";
 
 // One marketer's full picture for super-admin — reached by tapping a name on
 // either Marketers sub-page (the roster or the payouts table), never from
@@ -18,18 +27,26 @@ export default function AffiliateDetailPage() {
   const [affiliate, setAffiliate] = useState(null);
   const [gyms, setGyms] = useState([]);
   const [earnings, setEarnings] = useState([]);
+  const [defaultPercent, setDefaultPercent] = useState(0);
+  const [commissionModalOpen, setCommissionModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    Promise.all([listAffiliates(), listGymsByAffiliate(affiliateId), listEarningsByAffiliate(affiliateId)])
-      .then(([affiliates, g, e]) => {
+    Promise.all([
+      listAffiliates(),
+      listGymsByAffiliate(affiliateId),
+      listEarningsByAffiliate(affiliateId),
+      getPlatformSettings(),
+    ])
+      .then(([affiliates, g, e, settings]) => {
         if (!alive) return;
         setAffiliate(affiliates.find((a) => a.id === affiliateId) || null);
         setGyms(g);
         setEarnings(e.sort((a, b) => (toDate(b.created_at)?.getTime() ?? 0) - (toDate(a.created_at)?.getTime() ?? 0)));
+        setDefaultPercent(Number(settings.affiliate_commission_percent) || 0);
       })
       .catch(() => alive && setError("Couldn't load this marketer."))
       .finally(() => alive && setLoading(false));
@@ -57,6 +74,9 @@ export default function AffiliateDetailPage() {
 
   const pending = earnings.filter((e) => e.status !== "paid").reduce((sum, e) => sum + (Number(e.earned_amount) || 0), 0);
   const paidAllTime = earnings.filter((e) => e.status === "paid").reduce((sum, e) => sum + (Number(e.earned_amount) || 0), 0);
+
+  const ownRate = hasOwnCommissionRate(affiliate);
+  const effectivePercent = resolveCommissionPercent(affiliate, defaultPercent);
 
   const earnedByGym = new Map();
   for (const e of earnings) {
@@ -113,6 +133,28 @@ export default function AffiliateDetailPage() {
             {busy ? "Working…" : affiliate.active ? "Deactivate" : "Reactivate"}
           </button>
         </div>
+      </div>
+
+      <div className="card">
+        <div className="status-block__head">
+          <h2>Commission</h2>
+          <button className="btn btn--inline" onClick={() => setCommissionModalOpen(true)}>
+            Edit
+          </button>
+        </div>
+        <p className="muted hint">
+          {ownRate
+            ? "This marketer has their own rate. Changing the platform default won't move it."
+            : `Following the platform default (${defaultPercent}%). Set a rate here to give this marketer their own.`}
+        </p>
+        <p className="stat-card__value">
+          {effectivePercent}%{" "}
+          {!ownRate && <span className="muted hint">default</span>}
+        </p>
+        <p className="muted hint">
+          Applies to payments recorded from now on. Earnings already in the history below keep the rate
+          they were recorded at.
+        </p>
       </div>
 
       <div className="card">
@@ -184,6 +226,101 @@ export default function AffiliateDetailPage() {
           </table>
         )}
       </div>
+
+      <EditAffiliateCommissionModal
+        open={commissionModalOpen}
+        onClose={() => setCommissionModalOpen(false)}
+        affiliate={affiliate}
+        defaultPercent={defaultPercent}
+        onChanged={(percent) => setAffiliate((prev) => ({ ...prev, commission_percent: percent }))}
+      />
     </div>
+  );
+}
+
+// One marketer's own commission rate, or "use the platform default". Two
+// controls rather than one, because "follow the default" and "a fixed 30%"
+// are genuinely different states and a single dropdown can't express both
+// without a magic entry that reads like a real percentage.
+//
+// Saving null is what puts them back on the default — see
+// setAffiliateCommissionOverride. Everything is capped at
+// MAX_COMMISSION_PERCENT by the option list itself, so there is no way to
+// pick a number the cap would reject.
+function EditAffiliateCommissionModal({ open, onClose, affiliate, defaultPercent, onChanged }) {
+  const [useOwn, setUseOwn] = useState(false);
+  const [value, setValue] = useState("0");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    const own = hasOwnCommissionRate(affiliate);
+    setUseOwn(own);
+    // When they're on the default, the dropdown opens showing the default
+    // itself rather than 0 — so switching to "their own rate" starts from
+    // what they're actually earning today, not from nothing.
+    setValue(String(resolveCommissionPercent(affiliate, defaultPercent)));
+    setError("");
+  }, [open, affiliate, defaultPercent]);
+
+  async function submit(e) {
+    e.preventDefault();
+    setError("");
+    const percent = useOwn ? Number(value) : null;
+    if (useOwn && (Number.isNaN(percent) || percent < 0 || percent > MAX_COMMISSION_PERCENT)) {
+      return setError(`Pick a percentage between 0 and ${MAX_COMMISSION_PERCENT}.`);
+    }
+    setBusy(true);
+    try {
+      await setAffiliateCommissionOverride(affiliate.id, percent);
+      onChanged(percent);
+      onClose();
+    } catch {
+      setError("Couldn't save this marketer's commission.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title={`Commission — ${affiliate?.name ?? ""}`}>
+      <form onSubmit={submit}>
+        <label className="field">
+          <span>Rate</span>
+          <select value={useOwn ? "own" : "default"} onChange={(e) => setUseOwn(e.target.value === "own")}>
+            <option value="default">Platform default ({defaultPercent}%)</option>
+            <option value="own">A rate just for this marketer</option>
+          </select>
+        </label>
+
+        {useOwn && (
+          <label className="field">
+            <span>Commission (%)</span>
+            <select value={value} onChange={(e) => setValue(e.target.value)} required>
+              {commissionOptions(affiliate?.commission_percent).map((p) => (
+                <option key={p} value={String(p)}>
+                  {p}%
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        <p className="muted hint">
+          {useOwn
+            ? `Capped at ${MAX_COMMISSION_PERCENT}% — the platform keeps at least half of every payment.`
+            : "They'll follow the default, including any later change to it."}
+        </p>
+
+        {error && <div className="form-error">{error}</div>}
+
+        <div className="form-actions">
+          <button className="btn btn--primary btn--inline" type="submit" disabled={busy}>
+            {busy ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }

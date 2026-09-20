@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { listAffiliates, createAffiliate } from "../../data";
+import { listAffiliates, createAffiliate, getPlatformSettings } from "../../data";
 import Modal from "../../components/Modal";
 import CreateButton from "../../components/CreateButton";
 import StatusBadge from "../../components/StatusBadge";
 import PhoneNumber from "../../components/PhoneNumber";
+import { hasOwnCommissionRate, resolveCommissionPercent } from "../../logic/commission";
 
 // Two sub-pages under the "Marketers" nav section: this one (roster, name
 // order — registration happens in a popup, not inline) and
@@ -17,11 +18,16 @@ export default function MarketersList() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [defaultPercent, setDefaultPercent] = useState(0);
 
   useEffect(() => {
     let alive = true;
-    listAffiliates()
-      .then((a) => alive && setAffiliates(a))
+    Promise.all([listAffiliates(), getPlatformSettings()])
+      .then(([a, settings]) => {
+        if (!alive) return;
+        setAffiliates(a);
+        setDefaultPercent(Number(settings.affiliate_commission_percent) || 0);
+      })
       .catch(() => alive && setLoadError("Couldn't load marketers."))
       .finally(() => alive && setLoading(false));
     return () => {
@@ -62,6 +68,7 @@ export default function MarketersList() {
                 <th>Name</th>
                 <th>Username</th>
                 <th>Phone</th>
+                <th>Commission</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -72,6 +79,10 @@ export default function MarketersList() {
                   <td>{a.name}</td>
                   <td>{a.username}</td>
                   <td><PhoneNumber value={a.phone} /></td>
+                  <td>
+                    {resolveCommissionPercent(a, defaultPercent)}%
+                    {!hasOwnCommissionRate(a) && <span className="muted"> default</span>}
+                  </td>
                   <td>
                     <StatusBadge active={a.active} activeLabel="Active" inactiveLabel="Deactivated" />
                   </td>
@@ -156,7 +167,8 @@ function RegisterMarketerModal({ open, onClose, onRegistered }) {
       ) : (
         <form onSubmit={submit}>
           <p className="muted hint">
-            They earn a commission on payments from gyms attached to them at registration (Gyms → Register a gym).
+            They earn a commission on payments from gyms attached to them at registration (Gyms → Register a gym),
+            at the platform default rate until you give them one of their own.
           </p>
           <label className="field">
             <span>Name</span>

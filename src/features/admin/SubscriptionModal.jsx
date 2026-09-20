@@ -8,11 +8,13 @@ import {
   unlockOwnerSubscription,
   createPlatformPayment,
   recordAffiliateEarning,
+  getUserRecord,
   logAdminActivity,
 } from "../../data";
 import Modal from "../../components/Modal";
 import { licenseStatus, daysRemaining } from "../../logic/license";
 import { formatDate, formatDateTime, naira, toDate, capitalize } from "../../lib/helpers";
+import { resolveCommissionPercent } from "../../logic/commission";
 
 function addDays(date, days) {
   const d = new Date(date);
@@ -40,7 +42,13 @@ function toDateInputValue(value) {
 export default function SubscriptionModal({ owner, primaryGym, open, onClose, onOwnerChange }) {
   const { account } = useAuth();
   const [plans, setPlans] = useState([]);
+  // The rate that applies to THIS gym's affiliate, already resolved:
+  // their own if they have one, else the platform default
+  // (logic/commission.js). `commissionResolved` is false while that lookup
+  // is in flight or if it failed — see extendWithPlan, which refuses to
+  // record a payment rather than guess at a commission.
   const [commissionPercent, setCommissionPercent] = useState(0);
+  const [commissionResolved, setCommissionResolved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [selectedPlanId, setSelectedPlanId] = useState("custom");
@@ -49,19 +57,28 @@ export default function SubscriptionModal({ owner, primaryGym, open, onClose, on
   useEffect(() => {
     if (!open) return;
     let alive = true;
-    Promise.all([listPlatformPlans(), getPlatformSettings()])
-      .then(([p, settings]) => {
+    const affiliateId = primaryGym?.affiliate_id;
+    setCommissionResolved(false);
+    Promise.all([
+      listPlatformPlans(),
+      getPlatformSettings(),
+      // Only fetched when there IS an affiliate to pay — no attribution
+      // means no earning row and no rate to look up.
+      affiliateId ? getUserRecord(affiliateId) : Promise.resolve(null),
+    ])
+      .then(([p, settings, affiliate]) => {
         if (!alive) return;
         const active = p.filter((x) => x.active);
         setPlans(active);
         setSelectedPlanId(active[0]?.id ?? "custom");
-        setCommissionPercent(Number(settings.affiliate_commission_percent) || 0);
+        setCommissionPercent(resolveCommissionPercent(affiliate, settings.affiliate_commission_percent));
+        setCommissionResolved(true);
       })
       .catch(() => {});
     return () => {
       alive = false;
     };
-  }, [open]);
+  }, [open, primaryGym?.affiliate_id]);
 
   useEffect(() => {
     setExpiryInput(toDateInputValue(owner?.subscription?.expiry_date));
@@ -98,6 +115,15 @@ export default function SubscriptionModal({ owner, primaryGym, open, onClose, on
 
   async function extendWithPlan() {
     if (!selectedPlan) return;
+    // Refuse rather than guess. If this gym has a marketer attached and we
+    // could not read their rate (offline, or the lookup failed), recording
+    // the payment now would either pay the wrong commission or silently pay
+    // none — and both payment and earning rows are frozen once written
+    // (affiliateEarnings.js), so neither is fixable afterwards. Renewing is
+    // retryable; a wrong earning row is not.
+    if (primaryGym?.affiliate_id && !commissionResolved) {
+      return setError("Couldn't read this gym's marketer commission rate. Close this and try again.");
+    }
     setBusy(true);
     setError("");
     try {

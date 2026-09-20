@@ -132,7 +132,7 @@ src/
 │   ├── activityLog.js      a gym's own staff activity feed
 │   ├── platformPlans.js    super-admin's pricing tiers for what GYMS pay the PLATFORM
 │   ├── platformPayments.js a gym's payments TO the platform (frozen amount)
-│   ├── platformSettings.js single "config" doc — currently just affiliate commission %
+│   ├── platformSettings.js single "config" doc — currently just the DEFAULT affiliate commission %
 │   ├── affiliateEarnings.js commission an affiliate earns on a gym's platform payment
 │   ├── adminActivityLog.js platform-level audit trail (gym created/suspended/subscription changes)
 │   ├── dangerZone.js       TESTING ONLY — see §2.6
@@ -353,8 +353,14 @@ id, gym_id, gym_name, plan_id, plan_name, amount, duration_days, paid_at, + ledg
 
 ### platform_settings (single doc, id "config") — super-admin sets
 ```
-affiliate_commission_percent: number   // % of a platform payment an affiliate earns
+affiliate_commission_percent: number   // DEFAULT % of a platform payment an affiliate earns
 ```
+The default, not the only rate: an individual affiliate's `users` doc may
+carry its own `commission_percent`, which wins for their referrals.
+`src/logic/commission.js` owns that precedence and the shared 50% ceiling
+(`firestore.rules` enforces the same 50, so the cap is not merely a
+dropdown). Absent/null on an affiliate means "follow the default" and is
+deliberately distinct from 0, which means "this one earns nothing".
 
 ### affiliate_earnings (FACT, one narrow mutable field — see §2.2)
 ```
@@ -800,8 +806,12 @@ Settings.**
   never drift out of sync. The modal's plan dropdown extends by that plan's
   duration (logs one `platform_payments` record covering every branch +, if
   the owner's PRIMARY gym has an affiliate attached, an `affiliate_earnings`
-  record at the platform's current commission rate — decided once, at
-  original signup, never re-evaluated per branch), a custom-date fallback
+  record at that affiliate's applicable commission rate — their own if they
+  have one, else the platform default; attribution decided once, at original
+  signup, never re-evaluated per branch. If the affiliate is attached but
+  their rate can't be read, the modal REFUSES the renewal rather than
+  recording a guessed commission, since both rows freeze on write), a
+  custom-date fallback
   with no revenue logged, and instant-lock/unlock (fans out to every branch
   in one atomic batch — `data/subscriptions.js`).
 - **Subscriptions (`Subscriptions.jsx`)** — every OWNER now, not every gym
@@ -818,9 +828,12 @@ Settings.**
   `Marketers` nav entry. Roster: alphabetical, "Register a marketer" popup
   (name, username, phone, email). Payouts: pending/paid-all-time per
   marketer, CSV export, "Mark as paid" (flips their pending
-  `affiliate_earnings` to `"paid"`). A marketer's detail page: 2 stat cards
-  (current unpaid / all-time paid) above their contact details, gyms they
-  brought, earnings history.
+  `affiliate_earnings` to `"paid"`). Roster rows also show each marketer's
+  effective rate, tagged "default" when they're following the platform one.
+  A marketer's detail page: 2 stat cards (current unpaid / all-time paid)
+  above their contact details, a **Commission** card ("use the platform
+  default" vs "a rate just for this marketer", capped dropdown — §25), gyms
+  they brought, earnings history.
 - **Sync Monitor (`SyncMonitor.jsx`)** — every gym + when it last recorded
   attendance, i.e. the closest thing the web phase has to an offline-sync
   status (there's no literal sync queue yet — see `gymHealth.js`).
@@ -829,8 +842,10 @@ Settings.**
   Subscriptions when extending a subscription) AND the public marketing
   site's Pricing page cards (max members/receptionists, blurb, CTA text,
   featured flag, extra feature bullets) — one plan, one form, both jobs; see
-  platform_plans' own note in §6 for why. Affiliate commission (shown as a
-  plain percent + "Edit" popup, §9); "Change password" button + popup at
+  platform_plans' own note in §6 for why. Default affiliate commission
+  (shown as a plain percent + "Edit" popup whose control is a capped
+  dropdown, §9 — the per-marketer override lives on
+  `AffiliateDetailPage.jsx`, not here); "Change password" button + popup at
   the bottom.
 
 ---
@@ -843,9 +858,10 @@ internal operations — only what they referred and what they've earned.
 
 - **Gyms (index route, `AffiliateGyms.jsx`)** — every gym they brought in:
   name, the gym owner's name and phone (`PhoneNumber`, click-to-copy),
-  status, since. No per-gym earnings column — commission is a flat platform
-  rate, so it doesn't differentiate one row from another; the Revenue tab
-  covers the money side.
+  status, since. No per-gym earnings column — one affiliate is on ONE rate
+  across all their gyms (a rate varies per marketer, never per gym), so it
+  wouldn't differentiate one row from another; the Revenue tab covers the
+  money side.
 - **Revenue (`AffiliateRevenue.jsx`)** — pending-payout / paid-all-time stat
   cards, earnings history table (date, gym, payment, commission %, what they
   earned, Paid/Pending), and "Payments are made at the end of every month" as
@@ -2718,6 +2734,85 @@ had no `locked` key — so the create was denied, and the create transaction's
 installed app push the pending record on its next cycle; no rebuild is needed
 for that, since the fix is server-side. The reporting fix does need a rebuild
 to reach an installed desktop app.
+
+---
+
+## 24. Session length: 30 minutes → 6 hours (2026-09-18)
+
+Recorded in §15's own item 6 rather than repeated here — see "Session
+length: 30 minutes → 6 hours" there. Summary: the idle auto-logout is now a
+single universal 6 hours, briefly implemented as a phone-only exception and
+then withdrawn in favour of one number, because a desk shift is 6 to 8 hours
+on a PC too. Shipped inside the existing 1.0.1, which had never reached a
+gym.
+
+---
+
+## 25. Per-marketer affiliate commission (2026-09-20)
+
+**Asked for directly:** a commission rate settable per affiliate, falling
+back to the platform default where none is set, chosen from a dropdown, and
+never above 50%.
+
+**The precedence, in one place.** `src/logic/commission.js` is new and owns
+all of it: `resolveCommissionPercent(affiliate, defaultPercent)`,
+`clampCommissionPercent`, `hasOwnCommissionRate`, `commissionOptions` and
+the shared `MAX_COMMISSION_PERCENT = 50`. Nothing else decides which rate
+applies, so the answer can't differ between the screen that displays a rate
+and the code that pays it.
+
+**Absent ≠ zero.** An affiliate's `users.commission_percent` being absent or
+null means "follow the default"; 0 means "this one earns nothing". They have
+to stay distinguishable, which is why clearing the override writes `null`
+rather than deleting the field or falling back to 0 — and why every
+affiliate who existed before this keeps tracking the default exactly as
+before, with no migration.
+
+**The cap is enforced three times, deliberately.** The dropdowns can only
+offer 0–50; `clampCommissionPercent` squeezes anything else on the way to
+Firestore; and `firestore.rules` gained `commissionWithinCap()`, applied to
+`platform_settings` writes and gated across **every** `users` update branch,
+not just the super-admin one. The point of the third is that the first two
+are client-side and therefore advisory. This is the same lesson as the
+expired-subscription bug fixed in 1.0.1 — a rule that never actually checks
+the number is not a rule. The 50 in the rules file and the 50 in
+`commission.js` are duplicated by necessity (rules can't import JS); both
+comments say so and point at each other.
+
+**The default is capped too**, and its editor became the same dropdown. A
+default of 80% would have made the per-affiliate ceiling meaningless, since
+every affiliate without an override would have been paid at it. The former
+control was a free-text number capped at 100.
+
+**Legacy values.** The old field allowed 0.5 steps, so `commissionOptions`
+folds a stored fractional value into the list when it isn't already there —
+otherwise merely opening the form and saving would quietly round somebody's
+rate. A stored value ABOVE 50 is deliberately NOT preserved: the form opens
+on 50 so the fix is one Save.
+
+**Refusing rather than guessing, at the one place money is written.**
+`SubscriptionModal.jsx` now resolves the rate from the affiliate's own
+record (`getUserRecord`) plus the default. If a gym HAS an affiliate
+attached and that lookup fails, `extendWithPlan` stops with an error instead
+of recording the payment. Both `platform_payments` and `affiliate_earnings`
+freeze their numbers at creation (§2.2), so a commission recorded at the
+wrong rate is not fixable afterwards, whereas a refused renewal is simply
+retried. Falling back to the default there would silently underpay an
+affiliate on their own rate.
+
+**Where it's visible.** The marketer roster shows each effective rate tagged
+"default" where inherited; the detail page gained a Commission card and an
+Edit popup whose first control is "platform default" vs "a rate just for
+this marketer" (two controls, because those are genuinely different states
+and one dropdown can't express both without a fake percentage entry).
+Nothing on the affiliate's OWN screens changed — they already read
+`commission_percent` frozen on each earning row, never the live setting, so
+no rules change was needed for their side.
+
+**What the user still has to do:** deploy `firestore.rules`. Verified with
+`firebase deploy --only firestore:rules --dry-run` (compiles clean), but a
+dry run deploys nothing — until it's pushed, the 50% ceiling is only as
+strong as the dropdowns.
 
 ---
 

@@ -55,6 +55,14 @@ service cloud.firestore {
       return request.resource.data.get('role', '') == resource.data.get('role', '') &&
              request.resource.data.get('gym_id', '') == resource.data.get('gym_id', '');
     }
+    // The affiliate commission ceiling, enforced HERE and not only in the
+    // dropdowns that write it (src/logic/commission.js holds the same 50).
+    // A cap that lives only in the form is not a cap: anyone who can reach
+    // this collection can send whatever number they like. null passes, and
+    // must — it is how an affiliate is put back on the platform default.
+    function commissionWithinCap(value) {
+      return value == null || (value is number && value >= 0 && value <= 50);
+    }
     function gymAffiliateId(gymId) {
       return get(/databases/$(database)/documents/gyms/$(gymId)).data.get('affiliate_id', '');
     }
@@ -70,7 +78,12 @@ service cloud.firestore {
       allow create: if isSuperAdmin() ||
         (isOwner() && request.resource.data.get('role', '') == 'receptionist' &&
          request.resource.data.get('gym_id', '') in myGymIds());
-      allow update: if isSuperAdmin() ||
+      // The cap gates EVERY update path, not just the super-admin one, so
+      // there is no branch through which an out-of-range rate can arrive.
+      // It costs the other branches nothing: they never send the field, and
+      // an absent field reads as null, which passes.
+      allow update: if commissionWithinCap(request.resource.data.get('commission_percent', null)) && (
+        isSuperAdmin() ||
         (isOwner() && resource.data.get('role', '') == 'receptionist' &&
          resource.data.get('gym_id', '') in myGymIds() && unchangedRoleAndGym()) ||
         (request.auth.uid == uid &&
@@ -78,7 +91,8 @@ service cloud.firestore {
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['must_change_password']) &&
          request.resource.data.must_change_password == false) ||
         (request.auth.uid == uid && isAffiliate() &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bank_name', 'account_number']));
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bank_name', 'account_number']))
+      );
       allow delete: if isSuperAdmin();
     }
 
@@ -99,7 +113,9 @@ service cloud.firestore {
     }
 
     match /platform_settings/{id} {
-      allow read, create, update: if isSuperAdmin();
+      allow read: if isSuperAdmin();
+      allow create, update: if isSuperAdmin() &&
+        commissionWithinCap(request.resource.data.get('affiliate_commission_percent', null));
     }
 
     match /downloads/{id} {

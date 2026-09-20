@@ -13,6 +13,7 @@ import StatusBadge from "../../components/StatusBadge";
 import ChangePasswordForm from "../../components/ChangePasswordForm";
 import ThemePreference from "../../components/ThemePreference";
 import { naira } from "../../lib/helpers";
+import { MAX_COMMISSION_PERCENT, commissionOptions, clampCommissionPercent } from "../../logic/commission";
 
 export default function Settings() {
   const [plans, setPlans] = useState([]);
@@ -375,28 +376,39 @@ function PlanModal({ open, onClose, onSave, busy, plan }) {
   );
 }
 
-// The cut an affiliate marketer earns on a gym's platform payment (only for
-// gyms with one attached at registration — see NewGym.jsx) — everything
-// else stays with the platform. Read by Subscriptions.jsx at the moment a
-// payment is recorded and frozen onto that earning, so a later change here
-// never rewrites money already earned. Marketer roster + payouts live under
-// their own "Marketers" nav section, not here.
+// The DEFAULT cut an affiliate marketer earns on a gym's platform payment
+// (only for gyms with one attached at registration — see NewGym.jsx) —
+// everything else stays with the platform. An individual marketer can be
+// given their own rate instead, on AffiliateDetailPage.jsx; this number is
+// what applies to everyone who hasn't been. logic/commission.js owns that
+// precedence, and the MAX_COMMISSION_PERCENT ceiling both forms share.
+//
+// Read by Subscriptions.jsx at the moment a payment is recorded and frozen
+// onto that earning, so a later change here never rewrites money already
+// earned — nor does it retroactively move anyone already on their own rate.
+// Marketer roster + payouts live under their own "Marketers" nav section.
 function CommissionSettings({ percent, onChanged }) {
   const [modalOpen, setModalOpen] = useState(false);
 
   return (
     <div className="card">
       <div className="status-block__head">
-        <h2>Affiliate commission</h2>
+        <h2>Default affiliate commission</h2>
         <button className="btn btn--inline" onClick={() => setModalOpen(true)}>
           Edit
         </button>
       </div>
       <p className="muted hint">
         The share of a gym's platform payment that goes to the affiliate marketer who brought them in.
-        Gyms with no affiliate attached keep 100% of their payment with the platform.
+        This is the <strong>default</strong>: it applies to every marketer who hasn't been given a rate of
+        their own on their profile (Marketers &rarr; pick a marketer). Gyms with no affiliate attached keep
+        100% of their payment with the platform.
       </p>
-      <p className="stat-card__value">{percent}%</p>
+      {/* Clamped for display too, not just on save: a value stored before
+          the cap existed would otherwise read as e.g. 80% on this card while
+          resolveCommissionPercent pays 50%. The card should say what will
+          actually be paid. */}
+      <p className="stat-card__value">{clampCommissionPercent(percent)}%</p>
 
       <EditCommissionModal open={modalOpen} onClose={() => setModalOpen(false)} percent={percent} onChanged={onChanged} />
     </div>
@@ -404,13 +416,17 @@ function CommissionSettings({ percent, onChanged }) {
 }
 
 function EditCommissionModal({ open, onClose, percent, onChanged }) {
-  const [value, setValue] = useState(String(percent));
+  const [value, setValue] = useState(String(clampCommissionPercent(percent)));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (open) {
-      setValue(String(percent));
+      // Clamped, not passed straight through: the rate used to allow up to
+      // 100%, so an existing 80% would match no option in the list and the
+      // dropdown would open on a value the form can't save. Showing the
+      // ceiling instead makes the fix a single Save.
+      setValue(String(clampCommissionPercent(percent)));
       setError("");
     }
   }, [open, percent]);
@@ -419,7 +435,9 @@ function EditCommissionModal({ open, onClose, percent, onChanged }) {
     e.preventDefault();
     setError("");
     const num = Number(value);
-    if (Number.isNaN(num) || num < 0 || num > 100) return setError("Enter a percentage between 0 and 100.");
+    if (Number.isNaN(num) || num < 0 || num > MAX_COMMISSION_PERCENT) {
+      return setError(`Pick a percentage between 0 and ${MAX_COMMISSION_PERCENT}.`);
+    }
 
     setBusy(true);
     try {
@@ -434,21 +452,21 @@ function EditCommissionModal({ open, onClose, percent, onChanged }) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Affiliate commission">
+    <Modal open={open} onClose={onClose} title="Default affiliate commission">
       <form onSubmit={submit}>
         <label className="field">
           <span>Commission (%)</span>
-          <input
-            type="number"
-            min="0"
-            max="100"
-            step="0.5"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            required
-            autoFocus
-          />
+          <select value={value} onChange={(e) => setValue(e.target.value)} required autoFocus>
+            {commissionOptions(percent).map((p) => (
+              <option key={p} value={String(p)}>
+                {p}%
+              </option>
+            ))}
+          </select>
         </label>
+        <p className="muted hint">
+          Capped at {MAX_COMMISSION_PERCENT}% — the platform keeps at least half of every payment.
+        </p>
 
         {error && <div className="form-error">{error}</div>}
 

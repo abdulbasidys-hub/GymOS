@@ -28,6 +28,7 @@ import {
 } from "firebase/firestore";
 import app, { db, auth } from "./firebase";
 import { stripUndefined, usernameToEmail, DEFAULT_PASSWORD } from "../lib/helpers";
+import { clampCommissionPercent } from "../logic/commission";
 import { localInvoke } from "./local/bridge";
 
 // Firebase config lives on the primary `app`; re-derive it for the secondary
@@ -213,6 +214,28 @@ export async function listAffiliates() {
     query(collection(db, "users"), where("role", "==", "affiliate"))
   );
   return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Give one affiliate their own commission rate, or put them back on the
+ * platform default. Super-admin only (AffiliateDetailPage.jsx) — an
+ * affiliate cannot set their own cut, unlike their bank details below.
+ *
+ * `percent` of null clears the override, which is why this writes null
+ * rather than deleting the field: "follow the default" has to be storable,
+ * and null reads back identically to a doc that never had the field
+ * (logic/commission.js treats absent and null the same). Clamped to the
+ * shared ceiling on the way in.
+ *
+ * No Electron branch, matching every other super-admin-only write in this
+ * file's neighbourhood (platformSettings.js has none either) — marketers
+ * and platform billing are web-only screens; the desk app never reads or
+ * writes them.
+ */
+export function setAffiliateCommissionOverride(uid, percent) {
+  return updateDoc(doc(db, "users", uid), {
+    commission_percent: percent === null || percent === undefined ? null : clampCommissionPercent(percent),
+  });
 }
 
 /**

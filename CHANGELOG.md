@@ -53,6 +53,29 @@ The check is deliberately fail-open: a gym with no subscription, or with an
 expiry that isn't a real date, stays working. Only a genuine timestamp in
 the past locks anything.
 
+### Each marketer can have their own commission rate
+
+Affiliate commission was one number for everybody. Now a marketer can be put
+on their own rate: open **Marketers**, pick them, and use the **Commission**
+card. The choice is "platform default" or "a rate just for this marketer",
+and the rate itself is a dropdown rather than a typed number.
+
+Anyone you don't set a rate for keeps following the default on Settings,
+including any later change to it — so nothing moves unless you move it. The
+marketer list shows every rate at a glance, marked *default* where it's
+inherited.
+
+**No rate can exceed 50%**, the per-marketer one or the default. The
+platform keeps at least half of every payment, and that limit is enforced on
+the server, not just in the form.
+
+Setting a rate to 0% is different from leaving someone on the default: 0%
+means that marketer earns nothing on new payments.
+
+Rates apply to payments recorded from then on. Commission already recorded
+keeps the rate it was recorded at — changing a rate never rewrites money
+somebody has already earned.
+
 ### The desk no longer signs itself out mid-shift
 
 GymOS signed an untouched screen out after 30 minutes. That was too short
