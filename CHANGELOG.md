@@ -53,6 +53,34 @@ The check is deliberately fail-open: a gym with no subscription, or with an
 expiry that isn't a real date, stays working. Only a genuine timestamp in
 the past locks anything.
 
+### Marketers can download the app and both guides themselves
+
+The affiliate portal has a **Downloads** tab: the desktop installer and both
+the owner's and the receptionist's guide. A marketer demos GymOS to gyms that
+haven't signed up, so they need it on their own laptop, and they get asked
+front-desk questions as often as owner ones. Neither guide contains any
+gym's data.
+
+Receptionists still don't see the installer — putting the desk software on a
+gym's computer stays the owner's decision.
+
+### Payout details now include the account name
+
+The payout export had the marketer's name, bank, account number and amount.
+The name was their GymOS profile name, which is not necessarily the name
+their bank has on the account — a business account, or a relative's. A
+transfer is checked against the bank's version, so paying against the wrong
+one gets rejected or, worse, goes somewhere unintended.
+
+Marketers now enter an **account name** themselves, alongside bank and
+account number. It shows on the payouts table and exports as its own column,
+next to their name rather than instead of it.
+
+Two other changes to that export: it now covers **only marketers with
+something pending**, so every row is a transfer you're about to make, and the
+page names anyone who is owed money but hasn't finished their payout details
+— previously they exported as blank cells you'd only notice at the bank.
+
 ### Each marketer can have their own commission rate
 
 Affiliate commission was one number for everybody. Now a marketer can be put

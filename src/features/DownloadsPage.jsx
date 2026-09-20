@@ -2,17 +2,18 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../auth";
 import { DOWNLOAD_KINDS, listDownloads } from "../data";
 
-// Self-service downloads for owners and receptionists: the desktop
-// installer, and the PDF guide for whichever role is signed in. The point
-// is that a customer who isn't sitting with the super admin can still get
-// themselves set up — sign in through the browser, take the app and the
-// guide, and go.
+// Self-service downloads: the desktop installer, and whichever PDF guides
+// the signed-in role is entitled to. The point is that someone who isn't
+// sitting with the super admin can still get themselves set up — sign in
+// through the browser, take the app and the guide, and go.
 //
-// One component for both roles rather than two near-identical pages: the
+// One component for every role rather than three near-identical pages: the
 // only difference is WHICH entries are listed, which DOWNLOAD_KINDS.roles
 // already describes. An owner sees the app plus the owner's guide (which
 // covers the front desk too, so they can train their own staff); a
-// receptionist sees the app plus the front-desk guide only.
+// receptionist sees the front-desk guide only; an affiliate marketer sees
+// the app plus BOTH guides, since they demo the product and train a gym's
+// first week.
 
 // `embedded` drops the page heading and the outer card so this can sit as a
 // section inside another page — which is how the front desk reaches it on a
@@ -58,9 +59,13 @@ export default function DownloadsPage({ embedded = false }) {
 
   if (loading) return <p className="empty">Loading…</p>;
 
-  // Only owners are offered the installer (data/downloads.js), so the
-  // heading has to describe what THIS role can actually see.
+  // The heading has to describe what THIS role can actually see: not every
+  // role is offered the installer, and a marketer gets two guides rather
+  // than one (data/downloads.js). Counted rather than hardcoded per role, so
+  // adding an entry to DOWNLOAD_KINDS can't leave this sentence lying.
   const hasInstaller = visible.some((k) => k.id === "desktop_app");
+  const guideCount = visible.filter((k) => k.id.startsWith("guide_")).length;
+  const guideWord = guideCount > 1 ? "the guides" : "your guide";
 
   const rows = (
     <>
@@ -121,7 +126,9 @@ export default function DownloadsPage({ embedded = false }) {
         <h1>Downloads</h1>
         <p>
           {hasInstaller
-            ? "The desktop app and your guide, ready whenever you need them."
+            ? `The desktop app and ${guideWord}, ready whenever you need them.`
+            : guideCount > 1
+            ? "The guides, ready whenever you need them."
             : "Your guide, ready whenever you need it."}
         </p>
       </div>

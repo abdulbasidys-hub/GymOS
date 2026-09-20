@@ -91,7 +91,7 @@ service cloud.firestore {
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['must_change_password']) &&
          request.resource.data.must_change_password == false) ||
         (request.auth.uid == uid && isAffiliate() &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bank_name', 'account_number']))
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bank_name', 'account_number', 'account_name']))
       );
       allow delete: if isSuperAdmin();
     }

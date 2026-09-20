@@ -1,7 +1,8 @@
 // The `downloads` collection: the desktop installer and the PDF guides
-// that owners and receptionists fetch for themselves from the browser,
-// so a customer who isn't sitting with the super admin can still get set
-// up. Super admin writes; every signed-in user reads (firestore.rules).
+// that owners, receptionists and affiliate marketers fetch for themselves
+// from the browser, so a customer who isn't sitting with the super admin can
+// still get set up. Super admin writes; every signed-in user reads
+// (firestore.rules).
 //
 // Fixed document ids, not generated ones — there is exactly one current
 // installer and one current guide per role, and "replace the installer"
@@ -42,24 +43,30 @@ export const DOWNLOAD_KINDS = [
     id: "desktop_app",
     label: "GymOS desktop app",
     hint: "The Windows installer. Large — prefer a GitHub Release link over uploading.",
-    // Owners only. Installing the desk software on a gym's computer is the
-    // owner's decision, not a receptionist's — handing every desk account a
-    // 120MB installer invites machines nobody asked for. Receptionists still
-    // get their own guide below.
-    roles: ["owner"],
+    // Owners and marketers, not receptionists. Installing the desk software
+    // on a gym's computer is the owner's decision — handing every desk
+    // account a 120MB installer invites machines nobody asked for.
+    // A marketer is the opposite case: they sell this thing, so they need to
+    // be able to install it on their own laptop and demonstrate it to a gym
+    // that hasn't signed up yet. Receptionists still get their own guide.
+    roles: ["owner", "affiliate"],
     webOnly: true,
   },
   {
     id: "guide_owner",
     label: "Owner's guide",
     hint: "Covers the owner dashboard and how the front desk works.",
-    roles: ["owner"],
+    // Marketers get BOTH guides, deliberately. They're asked what the thing
+    // does by people who haven't bought it, and they train the first gym
+    // through its first week — answering for the front desk as much as for
+    // the owner. Neither guide contains any one gym's data.
+    roles: ["owner", "affiliate"],
   },
   {
     id: "guide_reception",
     label: "Receptionist's guide",
     hint: "Front-desk only: check-ins, registering members, taking payments.",
-    roles: ["receptionist"],
+    roles: ["receptionist", "affiliate"],
   },
 ];
 

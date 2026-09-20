@@ -242,12 +242,17 @@ export function setAffiliateCommissionOverride(uid, percent) {
  * An affiliate sets their OWN payout details — self-service, not something
  * super-admin fills in for them (AffiliateHome.jsx).
  */
-export function setAffiliateBankDetails(uid, { bankName, accountNumber }) {
+export function setAffiliateBankDetails(uid, { bankName, accountNumber, accountName }) {
   return updateDoc(
     doc(db, "users", uid),
     stripUndefined({
       bank_name: bankName?.trim(),
       account_number: accountNumber?.trim(),
+      // The name the BANK has on the account, which is not necessarily the
+      // marketer's own name on their GymOS profile — a business account, or
+      // a family member's. Super-admin pays against this, so it has to be
+      // the marketer's to state rather than inferred from `name`.
+      account_name: accountName?.trim(),
     })
   );
 }

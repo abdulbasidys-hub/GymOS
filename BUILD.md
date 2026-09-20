@@ -827,8 +827,11 @@ Settings.**
   `AffiliateDetailPage.jsx`)** — two sub-pages (roster / payouts) under one
   `Marketers` nav entry. Roster: alphabetical, "Register a marketer" popup
   (name, username, phone, email). Payouts: pending/paid-all-time per
-  marketer, CSV export, "Mark as paid" (flips their pending
-  `affiliate_earnings` to `"paid"`). Roster rows also show each marketer's
+  marketer with bank/account number/account name, CSV export (marketer,
+  bank, account number, account name, pending — pending-only rows, since
+  every line in that file is a transfer about to happen), a warning naming
+  anyone owed money whose payout details are incomplete, and "Mark as paid"
+  (flips their pending `affiliate_earnings` to `"paid"`). Roster rows also show each marketer's
   effective rate, tagged "default" when they're following the platform one.
   A marketer's detail page: 2 stat cards (current unpaid / all-time paid)
   above their contact details, a **Commission** card ("use the platform
@@ -854,7 +857,8 @@ Settings.**
 
 A referral partner's own view — reached at `/affiliate`, created only by
 super-admin (`MarketersList.jsx`). They never see a gym's members, staff, or
-internal operations — only what they referred and what they've earned.
+internal operations — only what they referred and what they've earned, plus
+the installer and guides they need in order to sell and set up (Downloads).
 
 - **Gyms (index route, `AffiliateGyms.jsx`)** — every gym they brought in:
   name, the gym owner's name and phone (`PhoneNumber`, click-to-copy),
@@ -866,10 +870,21 @@ internal operations — only what they referred and what they've earned.
   cards, earnings history table (date, gym, payment, commission %, what they
   earned, Paid/Pending), and "Payments are made at the end of every month" as
   a footer notice (deliberately NOT a banner at the top).
-- **Settings** (gear icon in the topbar → popup) — Payout details (bank name +
-  account number) shown as text with an "Edit" button opening its own popup
-  (self-service — `setAffiliateBankDetails`, not something super-admin fills
-  in for them); "Change password" button + its own popup underneath.
+- **Downloads (`DownloadsPage.jsx`, shared)** — the desktop installer and
+  **both** role guides. A marketer sells the product and trains a gym's first
+  week, so they need to install it on their own laptop to demo it and to
+  answer front-desk questions as well as owner ones; neither guide contains
+  any one gym's data. It's a real tab on the phone bar (four fits) rather
+  than behind the burger, which for a single link would be more tapping to
+  reach the same place.
+- **Settings** (gear icon in the topbar → popup) — Payout details (bank name,
+  account number, **account name**) shown as text with an "Edit" button
+  opening its own popup (self-service — `setAffiliateBankDetails`, not
+  something super-admin fills in for them). Account name is the name the BANK
+  has on the account, which is not necessarily their name on their GymOS
+  profile (a business account, a relative's) — a Nigerian transfer is
+  verified against it, so it has to be theirs to state rather than inferred
+  from `name`; "Change password" button + its own popup underneath.
 
 ---
 
@@ -2645,11 +2660,14 @@ than accumulates.
 
 **Who sees what** is declared once, in `DOWNLOAD_KINDS[].roles`, and both
 the customer page and the admin page read from it. Owners get the app plus
-the owner's guide (which covers the front desk too, so they can train
-their own staff); receptionists get the app plus the front-desk guide.
-`features/DownloadsPage.jsx` is one component shared by both roles rather
-than two near-identical pages — the only difference between them is which
-entries are listed, which that array already describes.
+the owner's guide (which covers the front desk too, so they can train their
+own staff); receptionists get the front-desk guide ONLY — never the
+installer, since putting the desk software on a gym's computer is the
+owner's call (this paragraph used to claim receptionists got the app too,
+which `roles: ["owner"]` never did); affiliate marketers get the app and
+BOTH guides (§26). `features/DownloadsPage.jsx` is one component shared by
+every role rather than near-identical pages — the only difference between
+them is which entries are listed, which that array already describes.
 
 **Files:** `src/data/downloads.js` (new) · `src/features/DownloadsPage.jsx`
 (new, owner + desk) · `src/features/admin/Downloads.jsx` (new, route
@@ -2813,6 +2831,60 @@ no rules change was needed for their side.
 `firebase deploy --only firestore:rules --dry-run` (compiles clean), but a
 dry run deploys nothing — until it's pushed, the 50% ceiling is only as
 strong as the dropdowns.
+
+---
+
+## 26. Marketer downloads + account name on payouts (2026-09-20)
+
+Two things asked for together, both about letting a marketer be paid and be
+useful without going through super-admin.
+
+**A Downloads page in the affiliate portal.** The installer plus BOTH role
+guides, at `/affiliate/downloads`. Nothing new was built for it —
+`DownloadsPage.jsx` was already role-driven, so this is three entries in
+`DOWNLOAD_KINDS[].roles` and a route. Why a marketer gets the installer when
+a receptionist does not: a receptionist works at a desk somebody else already
+set up, while a marketer demos the product to gyms that have not signed up
+and needs it on their own laptop. Why BOTH guides: they are asked front-desk
+questions as often as owner ones, and they train a gym's first week. Neither
+guide contains any one gym's data, so there is nothing to leak. No rules
+change — `downloads` was already `allow read: if isSignedIn()`.
+
+It is a real tab on the phone bar rather than an overflow item (the owner's
+longer nav puts Downloads behind the burger): the bar had three, holds five,
+and a NavMore sheet containing exactly one link is more taps to the same
+place. `DownloadsPage`'s heading copy now counts the guides it is showing
+instead of assuming one, so the sentence cannot go stale when
+`DOWNLOAD_KINDS` changes again.
+
+**Account name on payout details.** The CSV super-admin pays from had
+Name/Bank/Account number/Pending, where "Name" was the marketer's GymOS
+profile name. That is not the account name, and a Nigerian transfer is
+verified against the account name — a business account or a relative's will
+not match, and nothing in the app had ever captured it. New
+`users.account_name`, filled in by the marketer on their own payout form
+alongside bank and account number (their information to give, not
+super-admin's to guess), shown on the payouts table, and exported as its own
+column beside the marketer's name so the two are never confused again.
+
+`firestore.rules` needed a change for this and would have silently denied the
+save without it: the affiliate self-update branch is a `hasOnly([...])`
+whitelist, now `['bank_name', 'account_number', 'account_name']`.
+
+**Zero rows dropped from the export**, as offered. Every line in that file is
+a transfer about to happen, so a ₦0 row is one more thing to read past in a
+bank upload; the table above stays the full roster. The page also now names
+anyone who is owed money but has incomplete payout details — they cannot be
+paid from the export at all, and a blank cell in a bank upload is the kind of
+thing noticed after the transfer window closes.
+
+**Also corrected here:** §22's "who sees what" paragraph claimed
+receptionists got the installer. `roles: ["owner"]` never gave them one — the
+doc was wrong, not the code.
+
+**Still outstanding from §25:** `firestore.rules` is not deployed. It now
+carries both the commission cap and this whitelist change; verified compiling
+with `--dry-run`.
 
 ---
 

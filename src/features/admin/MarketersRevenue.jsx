@@ -45,6 +45,7 @@ export default function MarketersRevenue() {
               name: a.name,
               bankName: a.bank_name,
               accountNumber: a.account_number,
+              accountName: a.account_name,
               pending: 0,
               paidAllTime: 0,
             },
@@ -86,17 +87,39 @@ export default function MarketersRevenue() {
     }
   }
 
+  const toPayOutThisMonth = rows.reduce((sum, r) => sum + r.pending, 0);
+  const paidAllTime = rows.reduce((sum, r) => sum + r.paidAllTime, 0);
+  const payableRows = rows.filter((r) => r.pending > 0);
+  // Somebody owed money with no account details cannot be paid from this file
+  // at all, and a blank cell in a bank upload is the kind of thing noticed
+  // after the transfer window has closed. Counted so the page can say so.
+  const missingDetails = payableRows.filter((r) => !r.bankName || !r.accountNumber || !r.accountName);
+
+  // This file is worked through one transfer at a time, so it carries only the
+  // rows that represent a transfer.
+  //
+  // "Marketer" and "Account name" are BOTH here and are not the same field.
+  // The first is who earned it; the second is the name their bank has on the
+  // account. A business account or a relative's will not match, and the
+  // transfer is verified against the bank's version — exporting only the
+  // marketer's own name, which is all this used to do, invited paying against
+  // a name the bank would reject.
+  //
+  // Marketers with nothing pending are dropped: every row here is money about
+  // to move, so a zero line is one more thing to read past in a bank upload.
+  // They are all still on the table above, which stays the full roster.
   function exportCsv() {
-    const header = ["Name", "Bank", "Account number", "Pending earnings (NGN)"];
+    const header = ["Marketer", "Bank", "Account number", "Account name", "Pending earnings (NGN)"];
     const lines = [header.map(csvCell).join(",")];
-    for (const r of rows) {
-      lines.push([r.name, r.bankName || "", r.accountNumber || "", r.pending].map(csvCell).join(","));
+    for (const r of payableRows) {
+      lines.push(
+        [r.name, r.bankName || "", r.accountNumber || "", r.accountName || "", r.pending]
+          .map(csvCell)
+          .join(",")
+      );
     }
     downloadCsv(`marketer-payouts-${new Date().toISOString().slice(0, 10)}.csv`, lines.join("\n"));
   }
-
-  const toPayOutThisMonth = rows.reduce((sum, r) => sum + r.pending, 0);
-  const paidAllTime = rows.reduce((sum, r) => sum + r.paidAllTime, 0);
 
   return (
     <>
@@ -124,7 +147,7 @@ export default function MarketersRevenue() {
         <div className="status-block__head">
           <h2>Payouts</h2>
           <div className="page-actions">
-            <button className="btn btn--inline" onClick={exportCsv} disabled={rows.length === 0}>
+            <button className="btn btn--inline" onClick={exportCsv} disabled={payableRows.length === 0}>
               Export CSV
             </button>
             <button
@@ -136,7 +159,17 @@ export default function MarketersRevenue() {
             </button>
           </div>
         </div>
-        <p className="muted hint">Export and pay marketers at the end of each month, then mark them paid to close the period.</p>
+        <p className="muted hint">
+          Export and pay marketers at the end of each month, then mark them paid to close the period. The
+          export covers only marketers with something pending.
+        </p>
+        {missingDetails.length > 0 && (
+          <p className="form-error">
+            {missingDetails.length === 1
+              ? `${missingDetails[0].name} is owed money but hasn't finished their payout details — they can't be paid from the export until they do.`
+              : `${missingDetails.length} marketers are owed money but haven't finished their payout details — they can't be paid from the export until they do.`}
+          </p>
+        )}
 
         {error && <div className="form-error">{error}</div>}
 
@@ -152,6 +185,7 @@ export default function MarketersRevenue() {
                 <th>Name</th>
                 <th>Bank</th>
                 <th>Account number</th>
+                <th>Account name</th>
                 <th>Pending</th>
                 <th>Paid all-time</th>
               </tr>
@@ -165,6 +199,7 @@ export default function MarketersRevenue() {
                   </td>
                   <td>{r.bankName || <span className="muted">Not provided</span>}</td>
                   <td>{r.accountNumber || <span className="muted">Not provided</span>}</td>
+                  <td>{r.accountName || <span className="muted">Not provided</span>}</td>
                   <td>{naira(r.pending)}</td>
                   <td className="muted">{naira(r.paidAllTime)}</td>
                 </tr>

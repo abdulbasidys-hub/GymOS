@@ -73,6 +73,10 @@ function PayoutDetails({ affiliateId, account }) {
           <h4>Account number</h4>
           <p>{account?.account_number || <span className="muted">Not set</span>}</p>
         </div>
+        <div>
+          <h4>Account name</h4>
+          <p>{account?.account_name || <span className="muted">Not set</span>}</p>
+        </div>
       </div>
 
       <EditPayoutModal open={modalOpen} onClose={() => setModalOpen(false)} affiliateId={affiliateId} account={account} />
@@ -83,6 +87,7 @@ function PayoutDetails({ affiliateId, account }) {
 function EditPayoutModal({ open, onClose, affiliateId, account }) {
   const [bankName, setBankName] = useState(account?.bank_name || "");
   const [accountNumber, setAccountNumber] = useState(account?.account_number || "");
+  const [accountName, setAccountName] = useState(account?.account_name || "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -90,6 +95,7 @@ function EditPayoutModal({ open, onClose, affiliateId, account }) {
     if (!open) return;
     setBankName(account?.bank_name || "");
     setAccountNumber(account?.account_number || "");
+    setAccountName(account?.account_name || "");
     setError("");
   }, [open, account]);
 
@@ -98,10 +104,11 @@ function EditPayoutModal({ open, onClose, affiliateId, account }) {
     setError("");
     if (!bankName.trim()) return setError("Enter your bank name.");
     if (!accountNumber.trim()) return setError("Enter your account number.");
+    if (!accountName.trim()) return setError("Enter the account name.");
 
     setBusy(true);
     try {
-      await setAffiliateBankDetails(affiliateId, { bankName, accountNumber });
+      await setAffiliateBankDetails(affiliateId, { bankName, accountNumber, accountName });
       onClose();
     } catch {
       setError("Couldn't save your bank details.");
@@ -120,6 +127,14 @@ function EditPayoutModal({ open, onClose, affiliateId, account }) {
         <label className="field">
           <span>Account number</span>
           <input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} required />
+        </label>
+        <label className="field">
+          <span>Account name</span>
+          <input value={accountName} onChange={(e) => setAccountName(e.target.value)} required />
+          <span className="muted hint">
+            Exactly as your bank has it. Transfers are checked against this name, so it may differ from
+            your name here — a business account, for instance.
+          </span>
         </label>
 
         {error && <div className="form-error">{error}</div>}

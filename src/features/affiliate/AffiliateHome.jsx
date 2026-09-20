@@ -2,22 +2,31 @@ import { Routes, Route, NavLink } from "react-router-dom";
 import { useAuth } from "../../auth";
 import Logo from "../../components/Logo";
 import ThemeToggle from "../../components/ThemeToggle";
-import { IconBuilding, IconChart, IconGear, IconLogout } from "../../components/NavIcons";
+import { IconBuilding, IconChart, IconGear, IconDownload, IconLogout } from "../../components/NavIcons";
 import AffiliateGyms from "./AffiliateGyms";
 import AffiliateRevenue from "./AffiliateRevenue";
 import AffiliateSettings from "./AffiliateSettings";
+import DownloadsPage from "../DownloadsPage";
 
 // `tabOrder` places each tab on the phone bar independently of this list's
 // order, which the desktop sidebar follows. Gyms sits in the MIDDLE — it's
 // the page the portal opens on — with Settings left and Revenue right.
+//
+// Downloads is a real tab rather than going behind the burger (as it does in
+// the owner's longer nav): four still fits the bar comfortably, and a
+// NavMore sheet holding exactly one link is more tapping to reach the same
+// place, not less.
 const NAV = [
   { to: "/affiliate", end: true, label: "Gyms", Icon: IconBuilding, tab: true, tabOrder: 2 },
   { to: "/affiliate/revenue", label: "Revenue", Icon: IconChart, tab: true, tabOrder: 3 },
+  { to: "/affiliate/downloads", label: "Downloads", Icon: IconDownload, tab: true, tabOrder: 4 },
   { to: "/affiliate/settings", label: "Settings", Icon: IconGear, tab: true, tabOrder: 1 },
 ];
 
-// The affiliate marketer's whole app: a sidebar and three sub-pages — Gyms
-// (AffiliateGyms.jsx), Revenue (AffiliateRevenue.jsx) and Settings
+// The affiliate marketer's whole app: a sidebar and four sub-pages — Gyms
+// (AffiliateGyms.jsx), Revenue (AffiliateRevenue.jsx), Downloads (the shared
+// DownloadsPage.jsx, giving them the installer and both role guides so they
+// can demo the product and train a new gym) and Settings
 // (AffiliateSettings.jsx, which holds payout details, appearance and their
 // password). They only ever see their own earnings and their own referred
 // gyms (name/status/owner contact only — never a gym's members, the same
@@ -86,6 +95,7 @@ export default function AffiliateHome() {
           <Routes>
             <Route index element={<AffiliateGyms />} />
             <Route path="revenue" element={<AffiliateRevenue />} />
+            <Route path="downloads" element={<DownloadsPage />} />
             <Route path="settings" element={<AffiliateSettings />} />
           </Routes>
         </main>
