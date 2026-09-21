@@ -1807,8 +1807,7 @@ this session:
 
 ## 17. Public marketing website
 
-A separate, public-facing site — Home / Product / Pricing / Contact /
-Affiliates (§27) — lives
+A separate, public-facing site — Home / Product / Pricing / Contact — lives
 alongside the app itself and shares its auth/router, but is content
 otherwise unrelated to gym operations. Built from a Stitch export the user
 dropped in `Downloads/GymOS Website` (4 zip files, one screen each).
@@ -1832,8 +1831,8 @@ reuses the real `.verdict`/`.stat-card`/`.pill`/`.table` classes verbatim
 
 **Files:**
 - `src/components/website/WebsiteHeader.jsx` / `WebsiteFooter.jsx` /
-  `WebsiteLayout.jsx` — sticky nav (Home/Product/Pricing/Contact/Affiliates
-  + ThemeToggle + Sign in), footer with the same nav repeated + copyright.
+  `WebsiteLayout.jsx` — sticky nav (Home/Product/Pricing/Contact +
+  ThemeToggle + Sign in), footer with the same nav repeated + copyright.
   Mobile nav collapses behind a burger under 760px (CSS `max-height`
   toggle, no animation library).
 - `src/components/website/WebsiteIcons.jsx` — small site-only icons (bolt,
@@ -2919,8 +2918,11 @@ recoverable; it was never anywhere.
 
 **Two collections, one Inbox.** `gym_enquiries` (name, gym, email, message)
 from Contact; `affiliate_applications` (name, phone, email, photo) from a new
-`/become-an-affiliate` page. Super-admin reads both under one nav entry with
-two tabs, the same shape as Marketers. `handled` rather than "read" is the
+`/become-an-affiliate` page — reached from a card on Contact, deliberately
+NOT from the site header: that nav is for a visitor deciding whether to buy,
+and "come and sell it" sitting next to Pricing competes with that. Anyone
+wanting to work with us is heading for Contact anyway. Super-admin reads both
+under one nav entry with two tabs, the same shape as Marketers. `handled` rather than "read" is the
 state that matters — whether anyone actually got back to them, not whether
 the row was opened — and it's the only field super-admin can change, so the
 sender's own words stay as they wrote them.

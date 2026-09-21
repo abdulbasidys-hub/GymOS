@@ -68,8 +68,9 @@ also shows on the dashboard, so an unanswered enquiry is hard to miss.
 
 ### People can apply to become an affiliate
 
-A new **Become an affiliate** page on the website, linked from the site nav
-and the Contact page. An applicant gives their name, phone, email and a
+A new **Become an affiliate** page on the website, reached from the Contact
+page — deliberately not from the site's top nav, which is for visitors
+deciding whether to buy. An applicant gives their name, phone, email and a
 photo — the photo is for their welcome flier, and the form says so, since
 people send the wrong kind of picture when they don't know what it's for.
 
