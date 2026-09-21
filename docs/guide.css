@@ -114,6 +114,25 @@ body {
 }
 .cover__wordmark span { color: var(--accent); }
 
+/* The tagline, set exactly as the app writes it everywhere else: title
+   case, no full stop, "Smarter" in the brand green (the site header's own
+   lockup in WebsiteHeader.jsx is the reference). Sized at 11pt against the
+   wordmark's 27pt — the same ~0.41 ratio the header uses at 11px/27px — so
+   the two-line lockup reads identically in print and on screen.
+
+   NOT called .cover__tagline — that name was already taken by the uppercase
+   "Your gym. Simplified." line in the cover footer further down this file,
+   which would have overridden this one entirely. */
+.cover__brand-tagline {
+  margin: 1.5mm 0 0 0;
+  font-size: 11pt;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: #d6d6d6;
+}
+.cover__brand-tagline span { color: var(--accent); }
+
 .cover__kicker {
   margin: 2mm 0 0 0;
   padding-left: 4mm;
