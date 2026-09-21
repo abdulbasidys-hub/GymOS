@@ -1520,6 +1520,10 @@ select option { background: var(--surface); color: var(--text); }
   background: rgba(var(--caution-rgb), 0.1);
 }
 
+/* Two or three pills in one cell (Sync Monitor's "Running" column, where a
+   gym uses more than one client) would otherwise butt together. */
+.pill + .pill { margin-left: 6px; }
+
 .empty { color: var(--text-secondary); font-size: 14px; padding: 6px 0; }
 
 /* ---- expandable rows ---- */

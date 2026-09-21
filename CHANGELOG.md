@@ -53,6 +53,21 @@ The check is deliberately fail-open: a gym with no subscription, or with an
 expiry that isn't a real date, stays working. Only a genuine timestamp in
 the past locks anything.
 
+### Sync Monitor shows what each gym is running
+
+Sync Monitor now has a **Running** column: whether a gym is on the desktop
+app, the installed app on a phone, or an ordinary browser — plus when that
+client was last opened.
+
+A gym can show more than one, which is normal rather than a fault: the desk
+on the desktop app while the owner checks takings from their phone is two
+clients for one gym. Anything not seen in 30 days drops off, so the column
+says what they use now, not everything they have ever opened.
+
+A gym reports this when somebody signs in. **Unknown** therefore means nobody
+has signed in since this was added, not that the gym is inactive — and a desk
+working offline can only report once it next reaches the internet.
+
 ### Contact form messages now actually reach us
 
 **This was broken, and silently.** The Contact page on the website looked

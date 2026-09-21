@@ -144,7 +144,27 @@ service cloud.firestore {
       allow update: if isSuperAdmin() ||
         (isReceptionist() && inMyGym(gymId) && gymIsOperational(gymId) &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['member_seq']) &&
-         request.resource.data.get('member_seq', 0) > resource.data.get('member_seq', 0));
+         request.resource.data.get('member_seq', 0) > resource.data.get('member_seq', 0)) ||
+        // Platform heartbeat (data/gyms.js's reportGymClient) — which of the
+        // three clients this gym is actually using, for Sync Monitor.
+        //
+        // Owner OR receptionist, because both run the app and either may be
+        // the only one who ever opens it.
+        //
+        // NOT gated on gymIsOperational, unlike member_seq above, and that is
+        // deliberate: a suspended or expired gym still opens the app and still
+        // hits its locked screen, and knowing which client that is happening
+        // on is exactly what support needs. It writes no gym data — three
+        // timestamps — so nothing operational leaks through this door.
+        //
+        // The key whitelist inside `clients` matters as much as the outer
+        // one: without it any member of a gym could hang arbitrary fields off
+        // that map.
+        ((isOwner() || isReceptionist()) && inMyGym(gymId) &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['clients', 'last_seen_at']) &&
+         request.resource.data.clients is map &&
+         request.resource.data.clients.keys().hasOnly(['desktop', 'pwa', 'web']) &&
+         request.resource.data.last_seen_at == request.time);
       allow delete: if isSuperAdmin();
     }
 

@@ -106,6 +106,38 @@ export function updateGymName(gymId, name) {
   return updateDoc(doc(db, "gyms", gymId), { name: String(name).trim() });
 }
 
+/**
+ * Record that this gym is being used from this kind of client right now
+ * (lib/platform.js: "desktop" | "pwa" | "web"). Read by super-admin's Sync
+ * Monitor, which is otherwise guessing about a gym from its check-in times
+ * alone.
+ *
+ * One timestamp PER PLATFORM rather than a single "current platform" field,
+ * because a gym using two at once is the normal case — the desk on the
+ * installed app, the owner checking takings from their phone. A single field
+ * would have them flip-flopping and tell you nothing. `clients.<kind>` is a
+ * dotted path so writing one leaves the other two untouched.
+ *
+ * ALWAYS BEST-EFFORT. This is telemetry; nothing a gym does may fail because
+ * it couldn't be recorded. It is denied outright for an offline-authenticated
+ * Electron session (no real Firebase auth — BUILD.md §15), and it is a
+ * network write on a device that may have no network. Callers swallow the
+ * rejection, and the absence of a heartbeat is itself readable: Sync Monitor
+ * shows "Unknown" rather than pretending.
+ *
+ * Deliberately NOT routed through localInvoke on Electron. Every other write
+ * in this file goes to local SQLite first and syncs later, because it is a
+ * gym's own data and must survive offline. This is the opposite: a stale
+ * heartbeat pushed up hours later would say a desk was open at a time it
+ * wasn't. If it doesn't land now, it shouldn't land at all.
+ */
+export function reportGymClient(gymId, platform) {
+  return updateDoc(doc(db, "gyms", gymId), {
+    [`clients.${platform}`]: serverTimestamp(),
+    last_seen_at: serverTimestamp(),
+  });
+}
+
 /** Suspend a gym — blocks all operational reads/writes (see firestore.rules). */
 export function suspendGym(gymId) {
   return updateDoc(doc(db, "gyms", gymId), { status: "suspended" });

@@ -5,8 +5,9 @@
 // this via useAuth(). Remember: this routing is UX convenience — the REAL
 // permission enforcement is firestore.rules on the server.
 
-import { createContext, useContext, useEffect, useState } from "react";
-import { watchAuth, signOutUser, watchUserRecord, watchGym, getGym, reauthenticateForSync, hasFirebaseSession } from "./data";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { watchAuth, signOutUser, watchUserRecord, watchGym, getGym, reauthenticateForSync, hasFirebaseSession, reportGymClient } from "./data";
+import { currentPlatform } from "./lib/platform";
 import { ensureBootstrapped } from "./data/local/bootstrap";
 import { pushPendingChanges } from "./data/local/sync";
 import { pullRemoteChanges, pullFactAndMembers } from "./data/local/pull";
@@ -428,6 +429,30 @@ export function AuthProvider({ children }) {
   // entirely: gymId is right from the first render, and the effect only
   // ever REFINES it (restoring a multi-branch owner's stored branch).
   const resolvedGymId = activeGymId ?? account?.gym_id ?? resolveGymIds(account)[0] ?? null;
+
+  // Tell the server which of the three clients this gym is running
+  // (lib/platform.js), so Sync Monitor can say so instead of inferring a
+  // gym's life from its check-in times. Once per gym per session: the
+  // question is "do they use the desktop app at all", not "how many times did
+  // they open it", and a per-render or interval write would be noise the rule
+  // would then have to tolerate.
+  //
+  // Best-effort in the strongest sense — the .catch() is the point, not
+  // laziness. This write is denied outright in an offline-authenticated
+  // Electron session (no real Firebase auth, BUILD.md §15) and simply fails
+  // on a device with no network. Neither is a problem the person at the desk
+  // should ever hear about: nothing they do depends on it, and a missing
+  // heartbeat reads correctly at the other end as "we don't know".
+  //
+  // Roles without a gym (super-admin, affiliate) are skipped by the gymId
+  // guard — they aren't a gym using anything.
+  const reportedRef = useRef(new Set());
+  useEffect(() => {
+    if (status !== "ready" || !resolvedGymId) return;
+    if (reportedRef.current.has(resolvedGymId)) return;
+    reportedRef.current.add(resolvedGymId);
+    reportGymClient(resolvedGymId, currentPlatform()).catch(() => {});
+  }, [status, resolvedGymId]);
 
   const value = {
     status,

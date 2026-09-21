@@ -233,6 +233,12 @@ subscription: {
   last_verified_at, locked: bool,
   plan_id?, plan_name?            // which platform_plans tier funded the current expiry, if any
 },
+clients?: { desktop?: ts, pwa?: ts, web?: ts },  // last time this gym was opened on
+  // each of the three clients (src/lib/platform.js). Written by the gym's own
+  // owner/receptionist on sign-in (data/gyms.js's reportGymClient), read by
+  // Sync Monitor. One timestamp PER platform, not a single "current" field,
+  // because a gym using two at once is normal. Absent until somebody signs in.
+last_seen_at?: ts,                // most recent heartbeat of any client
 created_at, actor_uid
 ```
 
@@ -837,9 +843,12 @@ Settings.**
   above their contact details, a **Commission** card ("use the platform
   default" vs "a rate just for this marketer", capped dropdown — §25), gyms
   they brought, earnings history.
-- **Sync Monitor (`SyncMonitor.jsx`)** — every gym + when it last recorded
-  attendance, i.e. the closest thing the web phase has to an offline-sync
-  status (there's no literal sync queue yet — see `gymHealth.js`).
+- **Sync Monitor (`SyncMonitor.jsx`)** — every gym, WHAT THEY'RE RUNNING
+  (desktop app / installed app / browser, §28), when that client was last
+  opened, and when they last recorded attendance — the closest thing the web
+  phase has to an offline-sync status (there's no literal sync queue yet —
+  see `gymHealth.js`). More than one client per gym is normal and all are
+  shown; anything not seen in 30 days drops off.
 - **Settings (`Settings.jsx`)** — Pricing plans (table + "Create a plan"/
   "Edit" popup, §9): what GYMS pay the PLATFORM (amount, duration, picked in
   Subscriptions when extending a subscription) AND the public marketing
@@ -2988,6 +2997,73 @@ account name.
 
 **Rules deployed** (firestore + storage), since the forms are inert without
 them.
+
+---
+
+## 28. Sync Monitor shows what each gym is actually running (2026-09-21)
+
+**Asked for:** with no gym live yet, see per gym whether they're on the PWA,
+the web, or the desktop app.
+
+**Nothing reported it.** Sync Monitor inferred a gym's whole life from its
+most recent check-in; no client had ever said what it was. So this is a new
+signal, not a new view of an existing one.
+
+**One timestamp per platform, not a "current platform" field.**
+`gyms.clients: { desktop?, pwa?, web? }`, each set when that client signs in.
+A gym using two at once is the normal case — the desk on the installed app
+while the owner checks takings from their phone — and a single field would
+flip-flop between them and answer nothing. Sync Monitor shows the union, most
+recent first, and drops anything unseen for 30 days so a gym that ran the
+desktop app once in March isn't still labelled a desktop gym.
+
+**Detection order is the whole of `src/lib/platform.js`.** Electron is asked
+FIRST, because `isInstalledApp()` is true there too (it means "not in a
+browser", which is what it was written for) — asking it first would report
+every desk machine as a PWA.
+
+**Deliberately not routed through localInvoke on Electron**, unlike every
+other write in `gyms.js`. Those go to local SQLite first and sync later
+because they're the gym's own data and must survive offline. A heartbeat is
+the opposite: one pushed up hours later would claim a desk was open at a time
+it wasn't. If it can't land now it shouldn't land at all, so it goes straight
+to Firestore and is allowed to fail.
+
+**Best-effort in the strongest sense.** The write is denied outright in an
+offline-authenticated Electron session (no real Firebase auth, §15) and fails
+on any device with no network. Both are swallowed: nothing a gym does may
+break because telemetry didn't record. The absence reads correctly at the
+other end — Sync Monitor says "Unknown", and the page says in as many words
+that Unknown means nobody has signed in since this shipped, NOT that the gym
+is idle. Once per gym per session, since the question is "do they use the
+desktop app at all", not "how many times did they open it".
+
+**The rule is the part to review.** It's a new update path on `gyms` for
+owners AND receptionists, so it's whitelisted twice over: `affectedKeys()`
+limited to `['clients', 'last_seen_at']`, and the keys INSIDE `clients`
+limited to the three platform names — without that second check any member of
+a gym could hang arbitrary fields off that map. `last_seen_at` is forced to
+`request.time`.
+
+Unlike `member_seq` above it, it is NOT gated on `gymIsOperational`, on
+purpose: a suspended or expired gym still opens the app and still hits its
+locked screen, and knowing which client that is happening on is exactly what
+support needs. It writes three timestamps and no gym data, so nothing
+operational passes through that door.
+
+**Verified anonymously** — listing gyms, writing a heartbeat, and smuggling
+`status: "active"` alongside one are all denied. The authenticated
+owner/receptionist path could NOT be tested from here (no gym credentials in
+this environment); the first real sign-in is its confirmation.
+
+**Neutral pills, no colour.** Every existing `.pill--*` variant encodes a
+status (ok / bad / caution). A gym on the browser is not doing worse than one
+on the desktop app, and colouring these would invent a judgement that isn't
+there.
+
+**The desktop app needed the change to report itself at all**, so the
+installer was rebuilt and the GitHub release asset replaced in place — same
+tag, same filename, same link, nothing to repoint.
 
 ---
 
