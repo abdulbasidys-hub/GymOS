@@ -18,7 +18,7 @@ import {
   uploadMemberPhoto,
 } from "../data";
 import { currentRecord, isActive, computeExpiry } from "../logic/expiry";
-import { verdict as computeVerdict } from "../logic/entry";
+import { verdict as computeVerdict, blockedReason } from "../logic/entry";
 import EntryVerdict from "../components/EntryVerdict";
 import StatusBadge from "../components/StatusBadge";
 import HistoryList from "../components/HistoryList";
@@ -141,8 +141,6 @@ export default function MemberProfile() {
   const currentEquipment = currentRecord(equipmentRecords);
   const membershipActive = isActive(currentMembership?.expiry_date);
   const equipmentActive = isActive(currentEquipment?.expiry_date);
-  const v = computeVerdict({ membershipActive, equipmentActive });
-
   // An equipment payment with no matching equipment_record yet — paid for,
   // but access doesn't start counting down until they actually show up (see
   // handleAttendance, and data/payments.js's note on why duration is frozen
@@ -152,6 +150,16 @@ export default function MemberProfile() {
     [...payments]
       .filter((p) => p.for === "equipment" && !activatedPaymentIds.has(p.id))
       .sort((a, b) => (toDate(b.paid_at)?.getTime() ?? 0) - (toDate(a.paid_at)?.getTime() ?? 0))[0] || null;
+
+  // Computed AFTER the pending lookup, because pending is part of the rule
+  // now — equipment that is paid for but not yet started still lets somebody
+  // in (logic/entry.js).
+  const v = computeVerdict({
+    membershipActive,
+    equipmentActive,
+    equipmentPending: !!pendingEquipmentPayment,
+  });
+  const refusedBecause = blockedReason(v);
 
   const todayStart = startOfDay(new Date()).getTime();
   const attendedToday = attendance.some((a) => (toDate(a.recorded_at)?.getTime() ?? 0) >= todayStart);
@@ -359,24 +367,40 @@ export default function MemberProfile() {
 
       {isDesk && (
         <>
-          <EntryVerdict membershipActive={v.membershipActive} equipmentActive={v.equipmentActive} />
+          <EntryVerdict
+            membershipActive={v.membershipActive}
+            equipmentActive={v.equipmentActive}
+            equipmentPending={v.equipmentPending}
+          />
 
           <div className="form-actions">
             <button
               className="btn btn--primary btn--inline"
               onClick={handleAttendance}
-              disabled={busy || !membershipActive || attendedToday}
+              disabled={busy || !v.allowed || attendedToday}
             >
               {attendedToday ? "Already checked in today" : "Record attendance"}
             </button>{" "}
-            {/* Gated on membership only, not the combined verdict — equipment
-                access can legitimately be red while attendance is still
-                recordable ("walking out green on membership / red on
-                equipment", BUILD.md §8), and a first-time equipment payment
-                specifically NEEDS attendance to be recordable, since that's
-                what activates it (see handleAttendance). */}
-            {!membershipActive && <span className="muted">Collect a membership payment to enable check-in.</span>}
-            {membershipActive && attendedToday && (
+            {/* Gated on the SAME verdict the banner renders, so the two can
+                never disagree. It used to be gated on membership alone, which
+                meant the banner could say "Entry blocked" over a live Record
+                attendance button — somebody whose equipment had run out was
+                still being checked in and sent to the machines.
+
+                Pending is deliberately inside v.allowed rather than an
+                exception here: a first equipment payment NEEDS this check-in
+                to be recordable, because the check-in is what starts it
+                (handleAttendance below). */}
+            {refusedBecause === "both" && (
+              <span className="muted">Membership and equipment have both run out — collect payment to let them in.</span>
+            )}
+            {refusedBecause === "membership" && (
+              <span className="muted">Collect a membership payment to enable check-in.</span>
+            )}
+            {refusedBecause === "equipment" && (
+              <span className="muted">Equipment access has run out — collect an equipment payment to let them in.</span>
+            )}
+            {v.allowed && attendedToday && (
               <span className="muted">Attendance already recorded for today — resets tomorrow.</span>
             )}
           </div>

@@ -31,6 +31,34 @@ to build, publish the installer and point the Uploads page at it.
 
 ---
 
+## 1.1.0 — 23 September 2026
+
+### Expired equipment now actually stops somebody being checked in
+
+**This was a bug, and it let people train without paying.** The banner said
+<strong>Entry blocked</strong>, but the <strong>Record attendance</strong>
+button underneath it stayed live — so a member whose equipment access had run
+out was being checked in and sent to the machines. The two were being decided
+by different rules.
+
+Now they are decided by the same one. Both membership and equipment must be
+good before anybody can be checked in. If either has run out the button is
+switched off, and the message beside it names which payment to collect.
+
+**Equipment that has just been paid for still lets them in**, and now says so
+properly: it reads <strong>Starts today</strong> in amber instead of a red
+<strong>Expired</strong>. It was always allowed — checking them in is what
+starts the clock — but the screen used to show it as expired, which is exactly
+what made a receptionist take the money a second time.
+
+Nothing already recorded changes. This only affects check-ins from now on.
+
+> **If a gym has membership tiers but no equipment plans, every member will
+> now be blocked at the door.** Make sure each gym has at least one equipment
+> plan set up.
+
+---
+
 ## 1.0.1 — 17 September 2026
 
 Fixes found in a pre-launch audit. Nothing new to learn; three things that

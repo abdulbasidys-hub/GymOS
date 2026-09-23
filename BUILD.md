@@ -527,6 +527,16 @@ right next to each other at the bottom.
   possible with equipment red. The `EntryVerdict` banner itself is unaffected
   and still shows the real combined `membershipActive AND equipmentActive`
   picture; only the button's enablement changed.
+
+  > **REVERSED in §30 (2026-09-23), reported as a bug by the user.** The
+  > deadlock reasoning was right but the conclusion was wrong: the fix for
+  > pending was to put pending INSIDE the rule, not to drop equipment from
+  > the button. As written above, the banner said "Entry blocked" over a live
+  > **Record attendance** button, and a member whose equipment had genuinely
+  > expired was checked in and sent to the machines. `verdict()` now takes
+  > `equipmentPending` and returns `allowed = membership && (equipmentActive
+  > || equipmentPending)`; the button and the banner both render from it, so
+  > they cannot disagree again.
 - **Attendance is once-per-day.** Once recorded, the button disables itself
   ("Already checked in today") until local midnight — computed client-side
   (`attendance.some(a => recorded_at >= startOfDay(now))`), not a separate
@@ -3126,6 +3136,58 @@ manage it:
   is the third distinct way a screenshot has silently come out wrong (fixed
   sleep → §28, blank page → §28, skeleton → here), which is the argument for
   the retry-and-warn structure rather than more waiting.
+
+---
+
+## 30. Expired equipment no longer lets anyone in (2026-09-23)
+
+**Found by the user, and it was letting people train without paying.** The
+`EntryVerdict` banner said "Entry blocked" while the **Record attendance**
+button directly underneath it stayed enabled, because the two were computed
+from different rules: the banner from `membership && equipment`, the button
+from `!membershipActive` alone. A member whose equipment had genuinely
+expired was checked in and sent to the machines.
+
+**The old reasoning, and where it went wrong.** §8 gated the button on
+membership only, on the grounds that a first equipment payment can ONLY become
+active as a side effect of recording attendance — so gating on
+equipment-also-active would deadlock anyone with a pending payment. That
+deadlock is real. The mistake was the conclusion: the fix for pending was to
+put pending INSIDE the rule, not to drop equipment out of the button.
+
+**`verdict()` now takes three states, not two.** Equipment is `active`,
+`pending` or `expired`; `allowed = membership && (active || pending)`. The
+button and the banner both render from that one function, so they cannot
+disagree again. `blockedReason()` lives beside it and returns
+`membership` / `equipment` / `both`, so the wording under the button cannot
+drift from the condition that produced it.
+
+**Pending was also being displayed wrong**, which is the other half of the
+same bug. A member who had just paid for equipment showed a red **Expired**
+badge — the exact thing that makes a receptionist take the money a second
+time. It now reads **Starts today** in amber: allowed, but visibly not the
+same as active.
+
+**Six cases verified** against `logic/entry.js`: both active; membership +
+pending; membership + expired equipment (blocked, reason `equipment`);
+expired membership + active equipment (blocked, `membership`); expired
+membership + pending equipment (blocked, `membership`); both expired
+(blocked, `both`).
+
+**The consequence worth stating plainly:** a gym with membership tiers and
+NO equipment plans will now find every member blocked at the door. That is
+the correct behaviour under this rule, but it is a new failure mode for a
+half-configured gym, which is why §29's marketer guide got a setup walkthrough
+in the same pass with "at least one equipment plan exists" on its handover
+checklist.
+
+**All three guides said the old rule** — "checking in only needs membership",
+in five places across them — and all five are corrected. `desk-member-profile`
+retaken: it now shows the greyed-out button with "Equipment access has run
+out", which is a better teaching image than the old one anyway.
+
+**Shipped as 1.1.0**, not a patch: by CHANGELOG.md's own test a gym has to be
+told about this, and it changes who gets through the door.
 
 ---
 
