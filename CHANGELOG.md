@@ -31,38 +31,16 @@ to build, publish the installer and point the Uploads page at it.
 
 ---
 
-## 1.1.0 — 23 September 2026
+## 1.0.1 — September 2026
 
-### Expired equipment now actually stops somebody being checked in
+Everything built before the first gym. It started as three fixes from a
+pre-launch audit and kept growing, because nothing has shipped to anybody
+yet: with no gym running GymOS there is nobody to tell about a change and
+nothing in the field to migrate, so it all folds into one version rather
+than burning version numbers on a product no one has.
 
-**This was a bug, and it let people train without paying.** The banner said
-<strong>Entry blocked</strong>, but the <strong>Record attendance</strong>
-button underneath it stayed live — so a member whose equipment access had run
-out was being checked in and sent to the machines. The two were being decided
-by different rules.
-
-Now they are decided by the same one. Both membership and equipment must be
-good before anybody can be checked in. If either has run out the button is
-switched off, and the message beside it names which payment to collect.
-
-**Equipment that has just been paid for still lets them in**, and now says so
-properly: it reads <strong>Starts today</strong> in amber instead of a red
-<strong>Expired</strong>. It was always allowed — checking them in is what
-starts the clock — but the screen used to show it as expired, which is exactly
-what made a receptionist take the money a second time.
-
-Nothing already recorded changes. This only affects check-ins from now on.
-
-> **If a gym has membership tiers but no equipment plans, every member will
-> now be blocked at the door.** Make sure each gym has at least one equipment
-> plan set up.
-
----
-
-## 1.0.1 — 17 September 2026
-
-Fixes found in a pre-launch audit. Nothing new to learn; three things that
-could have bitten a paying gym.
+The numbering rules above start applying properly from the first real gym
+onward. Newest first.
 
 ### An expired subscription now actually stops the gym
 
@@ -186,6 +164,30 @@ means that marketer earns nothing on new payments.
 Rates apply to payments recorded from then on. Commission already recorded
 keeps the rate it was recorded at — changing a rate never rewrites money
 somebody has already earned.
+
+### Expired equipment now actually stops somebody being checked in
+
+**This was a bug, and it let people train without paying.** The banner said
+<strong>Entry blocked</strong>, but the <strong>Record attendance</strong>
+button underneath it stayed live — so a member whose equipment access had run
+out was being checked in and sent to the machines. The two were being decided
+by different rules.
+
+Now they are decided by the same one. Both membership and equipment must be
+good before anybody can be checked in. If either has run out the button is
+switched off, and the message beside it names which payment to collect.
+
+**Equipment that has just been paid for still lets them in**, and now says so
+properly: it reads <strong>Starts today</strong> in amber instead of a red
+<strong>Expired</strong>. It was always allowed — checking them in is what
+starts the clock — but the screen used to show it as expired, which is exactly
+what made a receptionist take the money a second time.
+
+Nothing already recorded changes. This only affects check-ins from now on.
+
+> **If a gym has membership tiers but no equipment plans, every member will
+> now be blocked at the door.** Make sure each gym has at least one equipment
+> plan set up.
 
 ### The desk no longer signs itself out mid-shift
 

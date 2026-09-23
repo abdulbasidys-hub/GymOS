@@ -3186,8 +3186,12 @@ in five places across them — and all five are corrected. `desk-member-profile`
 retaken: it now shows the greyed-out button with "Equipment access has run
 out", which is a better teaching image than the old one anyway.
 
-**Shipped as 1.1.0**, not a patch: by CHANGELOG.md's own test a gym has to be
-told about this, and it changes who gets through the door.
+**Version stays 1.0.1.** This was briefly bumped to 1.1.0 on the reasoning
+that a gym has to be told — which is CHANGELOG.md's own test, and would be
+right if anybody were running it. No gym has been onboarded yet, so there is
+nobody to tell and nothing in the field to migrate: the entry-rule change
+folds into 1.0.1 with everything else built before the first gym. The
+numbering test applies from the first real gym onward.
 
 ---
 
