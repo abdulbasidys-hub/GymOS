@@ -172,9 +172,31 @@ function CardFront({ member, planName, gym }) {
   const joined = toDate(member.date_joined) ?? toDate(member.created_at);
   return (
     <div className="mcard mcard--front">
-      <div className="mcard__no">
-        <span>Gym No:</span> <strong>{member.member_no}</strong>
-      </div>
+      {/* The whole decorative treatment as ONE full-bleed drawing rather than
+          a strip along the bottom, because the design has marks at the top
+          right as well — a faint grey arc and a green hairline behind the
+          number — and they have to share a coordinate space with the sweep to
+          stay in proportion.
+
+          Inline SVG rather than the exported PNG so it stays sharp at print
+          resolution and takes its greens from --accent. */}
+      <svg className="mcard__art" viewBox="0 0 856 540" preserveAspectRatio="none" aria-hidden="true">
+        {/* top right: pale arc, then the hairline over it */}
+        <path d="M560 0 C 660 95, 770 150, 856 165 L856 0 Z" fill="#000" opacity="0.045" />
+        <path
+          d="M604 -6 C 688 76, 782 120, 856 132"
+          stroke="var(--accent)"
+          strokeWidth="3.5"
+          fill="none"
+          opacity="0.55"
+        />
+        {/* the sweep, back to front: grey wisp, bright green, a darker green
+            edge, then the black blob the wordmark sits on */}
+        <path d="M250 540 C 400 432, 590 424, 856 286 L856 540 Z" fill="#000" opacity="0.05" />
+        <path d="M322 540 C 452 452, 632 440, 856 322 L856 540 Z" fill="var(--accent)" />
+        <path d="M410 540 C 520 474, 676 462, 856 356 L856 540 Z" fill="#15803d" opacity="0.55" />
+        <path d="M452 540 C 548 486, 692 474, 856 372 L856 540 Z" fill="#141414" />
+      </svg>
 
       <div className="mcard__body">
         <dl className="mcard__rows">
@@ -200,22 +222,31 @@ function CardFront({ member, planName, gym }) {
           </div>
         </dl>
 
-        <div className="mcard__photo">
-          {member.photo_url ? (
-            <img src={member.photo_url} alt="" />
-          ) : (
-            <span className="mcard__photo-empty">YOUR PHOTO HERE</span>
-          )}
+        {/* Number directly above the photo and no "Gym No:" label: the label
+            pushed the pill wider than the photo it sits on, which is what put
+            this corner out of shape. The number reads as a number without
+            being told. */}
+        <div className="mcard__ident">
+          <div className="mcard__no">{member.member_no}</div>
+          <div className="mcard__photo">
+            {member.photo_url ? (
+              <img src={member.photo_url} alt="" />
+            ) : (
+              <>
+                {/* The silhouette from the design, not a line of text on its
+                    own: a card handed over with a blank grey box looks
+                    unfinished, one with a placeholder figure looks like it is
+                    waiting for a photo. */}
+                <svg className="mcard__avatar" viewBox="0 0 64 64" aria-hidden="true">
+                  <circle cx="32" cy="22" r="12" fill="#b9bcc0" />
+                  <path d="M8 62 C 8 44, 20 37, 32 37 C 44 37, 56 44, 56 62 Z" fill="#b9bcc0" />
+                </svg>
+                <span className="mcard__photo-caption">YOUR PHOTO HERE</span>
+              </>
+            )}
+          </div>
         </div>
       </div>
-
-      {/* The decorative sweep, as two stacked shapes rather than an image:
-          it has to stay crisp at print resolution and recolour with the
-          brand, and an exported PNG would do neither. */}
-      <svg className="mcard__wave" viewBox="0 0 400 130" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M120 130 C 190 40, 300 95, 400 20 L400 130 Z" fill="var(--accent)" opacity="0.85" />
-        <path d="M185 130 C 250 70, 330 110, 400 55 L400 130 Z" fill="#111" />
-      </svg>
 
       <div className="mcard__tagline">
         <span className="mcard__dash" aria-hidden="true" />
@@ -240,13 +271,13 @@ function CardBack({ gym }) {
       <div className="mcard__watermark" aria-hidden="true">
         <Logo size={150} iconOnly />
       </div>
+      {/* No logo mark beside the name. The watermark behind it is already
+          the same mark at ten times the size; repeating it small next to the
+          wordmark was the same shape twice in one glance. */}
       <div className="mcard__backbrand">
-        <Logo size={26} iconOnly />
-        <div>
-          <div className="mcard__gymname">{gym.name}</div>
-          <div className="mcard__poweredby">
-            POWERED BY <strong>GYMOS</strong>
-          </div>
+        <div className="mcard__gymname">{gym.name}</div>
+        <div className="mcard__poweredby">
+          POWERED BY <strong>GYMOS</strong>
         </div>
       </div>
       <div className="mcard__url">
