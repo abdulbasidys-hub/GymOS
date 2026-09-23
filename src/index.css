@@ -2984,21 +2984,15 @@ select option { background: var(--surface); color: var(--text); }
   border: 0.3mm solid #cfcfcf;
   background: #e9eaec;
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
-  gap: 0.6mm;
   overflow: hidden;
 }
 .mcard__photo img { width: 100%; height: 100%; object-fit: cover; }
-.mcard__avatar { width: 11mm; height: 11mm; display: block; }
-.mcard__photo-caption {
-  font-size: 1.75mm;
-  letter-spacing: 0.08em;
-  color: #6b6f74;
-  text-align: center;
-  padding: 0 1mm;
-}
+/* Fills the frame rather than sitting in the middle of it, now the caption
+   underneath is gone. Bottom-aligned and edge-to-edge, so the shoulders run
+   off the bottom the way a real head-and-shoulders photo would. */
+.mcard__avatar { width: 100%; height: 100%; display: block; }
 
 /* The full-bleed decorative drawing. width/height 100% and NOT left/right:0:
    an <svg> is a REPLACED element, so left:0 + right:0 do not stretch it — it

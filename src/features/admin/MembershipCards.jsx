@@ -232,17 +232,16 @@ function CardFront({ member, planName, gym }) {
             {member.photo_url ? (
               <img src={member.photo_url} alt="" />
             ) : (
-              <>
-                {/* The silhouette from the design, not a line of text on its
-                    own: a card handed over with a blank grey box looks
-                    unfinished, one with a placeholder figure looks like it is
-                    waiting for a photo. */}
-                <svg className="mcard__avatar" viewBox="0 0 64 64" aria-hidden="true">
-                  <circle cx="32" cy="22" r="12" fill="#b9bcc0" />
-                  <path d="M8 62 C 8 44, 20 37, 32 37 C 44 37, 56 44, 56 62 Z" fill="#b9bcc0" />
-                </svg>
-                <span className="mcard__photo-caption">YOUR PHOTO HERE</span>
-              </>
+              // The silhouette alone, filling the frame the way a real
+              // portrait would. The "YOUR PHOTO HERE" caption is gone: it was
+              // an instruction to whoever designed the mockup, not to anybody
+              // holding the finished card, and it left the figure floating in
+              // a box half empty. The viewBox matches the box's own 20:22
+              // proportions so the figure fills it without being stretched.
+              <svg className="mcard__avatar" viewBox="0 0 60 66" aria-hidden="true">
+                <circle cx="30" cy="24" r="13.5" fill="#b9bcc0" />
+                <path d="M2 66 C 2 47, 15 41, 30 41 C 45 41, 58 47, 58 66 Z" fill="#b9bcc0" />
+              </svg>
             )}
           </div>
         </div>
