@@ -39,10 +39,14 @@ function arg(name) {
 const owner = (arg("owner") || "").split(":");
 const desk = (arg("desk") || "").split(":");
 
-if (!owner[0] || !owner[1] || !desk[0] || !desk[1]) {
-  console.error("Usage: node scripts/capture-screens.mjs --owner user:pass --desk user:pass");
+// --desk is optional: the two roles' shots are independent, and needing
+// both sets of credentials to refresh either one is what stops a single
+// stale screen from being fixed on its own.
+if (!owner[0] || !owner[1]) {
+  console.error("Usage: node scripts/capture-screens.mjs --owner user:pass [--desk user:pass]");
   process.exit(1);
 }
+const skipDesk = !desk[0] || !desk[1];
 
 // Desktop frame for most shots; the phone frame is used for the handful of
 // screens the guides show on a phone.
@@ -51,26 +55,26 @@ const PHONE = { width: 414, height: 896 };
 
 // [file name, route, settle ms, viewport]
 const OWNER_SHOTS = [
-  ["owner-dashboard", "/owner", 3500, DESKTOP],
-  ["owner-members", "/owner/members", 3000, DESKTOP],
-  ["owner-attendance", "/owner/attendance", 3000, DESKTOP],
-  ["owner-finances", "/owner/finances", 3000, DESKTOP],
-  ["owner-expiring", "/owner/expiring", 3000, DESKTOP],
-  ["owner-team", "/owner/staff", 3000, DESKTOP],
-  ["owner-settings", "/owner/settings", 3000, DESKTOP],
-  ["owner-downloads", "/owner/downloads", 3000, DESKTOP],
-  ["owner-dashboard-phone", "/owner", 3500, PHONE],
-  ["owner-team-phone", "/owner/staff", 3000, PHONE],
+  ["owner-dashboard", "/owner", 5000, DESKTOP],
+  ["owner-members", "/owner/members", 5000, DESKTOP],
+  ["owner-attendance", "/owner/attendance", 5000, DESKTOP],
+  ["owner-finances", "/owner/finances", 5000, DESKTOP],
+  ["owner-expiring", "/owner/expiring", 5000, DESKTOP],
+  ["owner-team", "/owner/staff", 5000, DESKTOP],
+  ["owner-settings", "/owner/settings", 5000, DESKTOP],
+  ["owner-downloads", "/owner/downloads", 5000, DESKTOP],
+  ["owner-dashboard-phone", "/owner", 5000, PHONE],
+  ["owner-team-phone", "/owner/staff", 5000, PHONE],
 ];
 
 const DESK_SHOTS = [
-  ["desk-checkin", "/desk", 3000, DESKTOP],
-  ["desk-members", "/desk/members", 3000, DESKTOP],
-  ["desk-register", "/desk/register", 3000, DESKTOP],
-  ["desk-finances", "/desk/finances", 3000, DESKTOP],
-  ["desk-settings", "/desk/settings", 3000, DESKTOP],
-  ["desk-downloads", "/desk/downloads", 3000, DESKTOP],
-  ["desk-checkin-phone", "/desk", 3000, PHONE],
+  ["desk-checkin", "/desk", 5000, DESKTOP],
+  ["desk-members", "/desk/members", 5000, DESKTOP],
+  ["desk-register", "/desk/register", 5000, DESKTOP],
+  ["desk-finances", "/desk/finances", 5000, DESKTOP],
+  ["desk-settings", "/desk/settings", 5000, DESKTOP],
+  ["desk-downloads", "/desk/downloads", 5000, DESKTOP],
+  ["desk-checkin-phone", "/desk", 5000, PHONE],
 ];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -147,6 +151,37 @@ async function goto(cdp, url, settle) {
   await sleep(settle);
 }
 
+// THE FIX for guides full of "Loading…".
+//
+// Every shot used to be a fixed sleep and a capture, which is a bet that the
+// data came back inside N milliseconds. On a cold Firestore connection it
+// routinely doesn't, and the bet was being lost silently — the PNG is only
+// ever looked at weeks later, in a PDF.
+//
+// So: poll the rendered page until nothing on it still says "Loading…", and
+// only then capture. A timeout still captures rather than aborting the whole
+// run, but says so loudly, because a named-and-warned bad shot is worth more
+// than a crashed run that produced nothing.
+async function waitForLoaded(cdp, name, timeoutMs = 30000) {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const busy = await cdp.eval(`(() => {
+      const text = document.body ? document.body.innerText : "";
+      // Both spellings: JSX writes "Loading…" (U+2026) in most places and
+      // "Loading&hellip;" in a few, which renders to the same character, but
+      // the plain three dots turns up too.
+      if (/Loading(…|\.\.\.)/.test(text)) return "loading";
+      // The splash is the whole-app one, before auth resolves.
+      if (document.querySelector(".splash")) return "splash";
+      return "";
+    })()`);
+    if (!busy) return true;
+    await sleep(500);
+  }
+  console.log(`  (warning: ${name} still showed a loading state after ${timeoutMs / 1000}s)`);
+  return false;
+}
+
 async function shot(cdp, name) {
   const { data } = await cdp.send("Page.captureScreenshot", { format: "png" });
   fs.writeFileSync(path.join(OUT, `${name}.png`), Buffer.from(data, "base64"));
@@ -156,6 +191,19 @@ async function shot(cdp, name) {
 // Same as shot(), but reloads first if the screen is showing an error
 // message. A screenshot with "Couldn't load…" in it is no use in a manual,
 // and these are usually transient.
+// setViewport -> navigate -> settle -> WAIT FOR LOAD -> capture.
+// Every screenshot goes through here, so none can quietly skip the wait,
+// which is exactly how the old run() ended up full of "Loading…" (it had a
+// retry helper, shotClean below, that it never actually called).
+async function capture(cdp, name, route, settle, vp) {
+  await setViewport(cdp, vp);
+  await goto(cdp, `${BASE}${route}`, settle);
+  await waitForLoaded(cdp, name);
+  // A beat after the data lands, so charts and images have painted.
+  await sleep(1200);
+  await shot(cdp, name);
+}
+
 async function shotClean(cdp, name, url, settle) {
   for (let attempt = 1; attempt <= 3; attempt++) {
     await goto(cdp, url, settle);
@@ -302,21 +350,21 @@ async function run() {
 
     // Signed out, so this is the public sign-in screen.
     await setViewport(cdp, DESKTOP);
-    await goto(cdp, `${BASE}/login`, 3500);
+    await goto(cdp, `${BASE}/login`, 5000);
+    await waitForLoaded(cdp, "login");
     await shot(cdp, "login");
 
     console.log(`Signing in as ${owner[0]} (owner)…`);
     await signIn(cdp, owner[0], owner[1]);
     for (const [name, route, settle, vp] of OWNER_SHOTS) {
-      await setViewport(cdp, vp);
-      await goto(cdp, `${BASE}${route}`, settle);
-      await shot(cdp, name);
+      await capture(cdp, name, route, settle, vp);
     }
 
     // The phone's overflow menu, open. Only meaningful at phone width --
     // the burger doesn't exist in the desktop sidebar.
     await setViewport(cdp, PHONE);
-    await goto(cdp, `${BASE}/owner`, 3000);
+    await goto(cdp, `${BASE}/owner`, 5000);
+    await waitForLoaded(cdp, "owner-more-phone");
     const opened = await cdp.eval(`(() => {
       const b = document.querySelector(".nav-more");
       if (!b) return false;
@@ -334,7 +382,9 @@ async function run() {
     await setViewport(cdp, DESKTOP);
     const ownerMember = await pickMember(cdp);
     if (ownerMember) {
-      await openMemberFromList(cdp, `${BASE}/owner/members`, ownerMember.name, 4000);
+      await openMemberFromList(cdp, `${BASE}/owner/members`, ownerMember.name, 5000);
+      await waitForLoaded(cdp, "owner-member-profile");
+      await sleep(1200);
       await shot(cdp, "owner-member-profile");
     } else {
       console.log("  (no member found — skipped owner-member-profile)");
@@ -343,29 +393,39 @@ async function run() {
     await goto(cdp, `${BASE}/owner`, 2500);
     await signOut(cdp);
 
+    if (skipDesk) {
+      console.log("No --desk credentials given — desk shots skipped.");
+      console.log(`Done. ${fs.readdirSync(OUT).length} files in docs/shots/`);
+      return;
+    }
+
     console.log(`Signing in as ${desk[0]} (front desk)…`);
     await signIn(cdp, desk[0], desk[1]);
     for (const [name, route, settle, vp] of DESK_SHOTS) {
-      await setViewport(cdp, vp);
-      await goto(cdp, `${BASE}${route}`, settle);
-      await shot(cdp, name);
+      await capture(cdp, name, route, settle, vp);
     }
 
     await setViewport(cdp, DESKTOP);
     const deskMember = await pickMember(cdp);
     if (deskMember) {
       // Check-in mid-search, so the results table is visible.
-      await goto(cdp, `${BASE}/desk`, 3000);
+      await goto(cdp, `${BASE}/desk`, 5000);
+      await waitForLoaded(cdp, "desk-checkin-results");
       await typeInto(cdp, ".search-stack input", deskMember.name.split(" ")[0]);
+      await sleep(1200);
       await shot(cdp, "desk-checkin-results");
 
       // The desk's member profile: verdict banner, renew controls, the
       // Record attendance button. The most important screen in the guides.
-      await openMemberFromList(cdp, `${BASE}/desk/members`, deskMember.name, 4000);
+      await openMemberFromList(cdp, `${BASE}/desk/members`, deskMember.name, 5000);
+      await waitForLoaded(cdp, "desk-member-profile");
+      await sleep(1200);
       await shot(cdp, "desk-member-profile");
 
       await setViewport(cdp, PHONE);
-      await openMemberFromList(cdp, `${BASE}/desk/members`, deskMember.name, 4000);
+      await openMemberFromList(cdp, `${BASE}/desk/members`, deskMember.name, 5000);
+      await waitForLoaded(cdp, "desk-member-profile-phone");
+      await sleep(1200);
       await shot(cdp, "desk-member-profile-phone");
     } else {
       console.log("  (no member found — skipped profile shots)");
