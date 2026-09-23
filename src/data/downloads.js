@@ -68,6 +68,16 @@ export const DOWNLOAD_KINDS = [
     hint: "Front-desk only: check-ins, registering members, taking payments.",
     roles: ["receptionist", "affiliate"],
   },
+  {
+    id: "guide_marketer",
+    label: "Marketer's guide",
+    hint: "For affiliates: how the whole product works, what to tell an owner, and how commission is paid.",
+    // Marketers only. It is the one guide that covers BOTH roles' screens at
+    // once plus the commercial side, because an owner rings their marketer
+    // before they ring us — so the marketer has to be able to answer for the
+    // whole product, not just their own portal.
+    roles: ["affiliate"],
+  },
 ];
 
 const MAX_UPLOAD_BYTES = 200 * 1024 * 1024;

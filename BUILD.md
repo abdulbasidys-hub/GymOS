@@ -2683,8 +2683,8 @@ the owner's guide (which covers the front desk too, so they can train their
 own staff); receptionists get the front-desk guide ONLY — never the
 installer, since putting the desk software on a gym's computer is the
 owner's call (this paragraph used to claim receptionists got the app too,
-which `roles: ["owner"]` never did); affiliate marketers get the app and
-BOTH guides (§26). `features/DownloadsPage.jsx` is one component shared by
+which `roles: ["owner"]` never did); affiliate marketers get the app, BOTH
+role guides (§26) and a `guide_marketer` of their own (§29). `features/DownloadsPage.jsx` is one component shared by
 every role rather than near-identical pages — the only difference between
 them is which entries are listed, which that array already describes.
 
@@ -3064,6 +3064,68 @@ there.
 **The desktop app needed the change to report itself at all**, so the
 installer was rebuilt and the GitHub release asset replaced in place — same
 tag, same filename, same link, nothing to repoint.
+
+---
+
+## 29. Marketer's guide, and a pricing shot with real prices (2026-09-23)
+
+**The reasoning behind writing it at all**, in the user's words: an owner
+rings their marketer first when they don't understand something. So the
+marketer's guide is not a guide to the marketer's own portal — that part is
+one chapter of sixteen. It is a guide to the WHOLE product, written for
+somebody who has to answer for it without being able to see inside any gym.
+
+**Sixteen chapters** (`docs/marketer-guide.html`, same `guide.css` and cover
+furniture as the other two): what GymOS is and the two-things model; the
+three plans and their real prices; the three ways it runs; who can see what;
+the owner's screens; the desk's screens; the five rules that generate most
+support calls; offline; subscriptions and locking; their own portal; how
+commission actually works; an onboarding checklist; a "calls you will get"
+table; a "what you must not promise" table; and a one-page summary.
+
+**Two chapters exist because getting them wrong costs real money**, and
+neither is in the other guides:
+
+- *How you get paid* states plainly that commission is RECURRING (every
+  payment that gym ever makes, not a finder's fee), that attribution is fixed
+  at gym creation and never re-evaluated, and that the rate is frozen onto
+  each earning so later changes never rewrite history. All three are things
+  §25/§6 already enforce in code; the guide is the first place they are said
+  to the person they affect.
+- *What you must not promise* is the boundary list — a marketer cannot see a
+  gym's members, unlock an expired gym, reset a password, undo a payment, or
+  have a gym's attribution moved to them afterwards. That last one is in
+  there specifically because "sign up now, I'll get it put under me later" is
+  the plausible-sounding promise that would cost a marketer the entire
+  commission on that gym.
+
+**No commission percentage is printed anywhere in it.** Rates are per-marketer
+(§25), so the guide says "your agreed rate" and points at the Revenue screen,
+which shows the rate against every earning row. A number in a PDF would be
+wrong for somebody the day it was written.
+
+**No super-admin screens in it either**, same rule the other two guides are
+held to — only owner, desk and public pricing shots, all of which a marketer
+can already reach.
+
+**Download slot:** `guide_marketer` in `DOWNLOAD_KINDS`, `roles:
+["affiliate"]`. Nothing else needed — both the affiliate Downloads page and
+super-admin's Uploads page map over that array, so the slot appears in both
+automatically. `build-guides.ps1` renders all three now.
+
+**Pricing screenshot retaken**, and the capture script grew two things to
+manage it:
+
+- `PUBLIC_SHOTS` and an `--only <substring>` filter, so a single screen can be
+  refreshed without either sign-in. `--only pricing` needs no credentials at
+  all. Both credential pairs are now optional.
+- **A skeleton check in `pageProblem()`.** The first pricing capture came back
+  as three grey placeholder cards under a real headline: the page had plenty
+  of text, no "Loading…" anywhere, and no error — so every existing check
+  passed it. Skeletons are now treated as an unloaded page and retried. This
+  is the third distinct way a screenshot has silently come out wrong (fixed
+  sleep → §28, blank page → §28, skeleton → here), which is the argument for
+  the retry-and-warn structure rather than more waiting.
 
 ---
 

@@ -93,6 +93,21 @@ Applications land in the Inbox on their own tab, photo included, openable at
 full size. Accepting somebody is still the existing "Register a marketer"
 step, which is what creates their account and temporary password.
 
+### A guide written for marketers
+
+Marketers now have their own manual, and it covers the **whole** product, not
+just their portal. The reason is simple: when an owner doesn't understand
+something, they ring the person who sold it to them, not us.
+
+Sixteen chapters — what GymOS does, the three plans and prices, the three
+ways it runs, the owner's screens, the desk's screens, the rules that cause
+the most confusion, offline working, what locking looks like, how commission
+actually works, an onboarding checklist, the calls they'll get with answers,
+and the things they must never promise.
+
+It's on their Downloads page alongside the app and the two role guides. As
+with every other download, it appears once you publish it from Uploads.
+
 ### Marketers can download the app and both guides themselves
 
 The affiliate portal has a **Downloads** tab: the desktop installer and both

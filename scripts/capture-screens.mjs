@@ -39,19 +39,28 @@ function arg(name) {
 const owner = (arg("owner") || "").split(":");
 const desk = (arg("desk") || "").split(":");
 
-// --desk is optional: the two roles' shots are independent, and needing
-// both sets of credentials to refresh either one is what stops a single
-// stale screen from being fixed on its own.
-if (!owner[0] || !owner[1]) {
-  console.error("Usage: node scripts/capture-screens.mjs --owner user:pass [--desk user:pass]");
-  process.exit(1);
-}
+// Both credential pairs are optional, and so is doing the whole set.
+// Needing every role's password to refresh any one screen is what stops a
+// single stale shot from being fixed on its own.
+//
+//   --only pricing     just the pricing page (no sign-in at all)
+//   --only desk        the front desk's screens
+//   --only owner-team  one screen
+const only = arg("only");
+const wanted = (list) => (only ? list.filter(([name]) => name.includes(only)) : list);
+const skipOwner = !owner[0] || !owner[1];
 const skipDesk = !desk[0] || !desk[1];
 
 // Desktop frame for most shots; the phone frame is used for the handful of
 // screens the guides show on a phone.
 const DESKTOP = { width: 1440, height: 900 };
 const PHONE = { width: 414, height: 896 };
+
+// Signed OUT — the public site. Captured before any sign-in.
+const PUBLIC_SHOTS = [
+  ["login", "/login", 5000, DESKTOP],
+  ["pricing", "/pricing", 5000, DESKTOP],
+];
 
 // [file name, route, settle ms, viewport]
 const OWNER_SHOTS = [
@@ -210,6 +219,11 @@ async function pageProblem(cdp) {
     if (text.length < 40) return "blank page (" + text.length + " chars)";
     const err = document.querySelector(".form-error");
     if (err && err.offsetParent !== null) return "error: " + err.textContent.trim().slice(0, 60);
+    // Skeleton placeholders (the pricing page draws three grey cards while
+    // plans load). These carry NO "Loading…" text, so waitForLoaded is blind
+    // to them — the first capture of the pricing page came back as three grey
+    // bars under a real headline, which passed every other check here.
+    if (document.querySelector("[class*='skeleton']")) return "still showing skeleton placeholders";
     return "";
   })()`);
 }
@@ -385,17 +399,27 @@ async function run() {
     await cdp.send("Page.enable");
     await cdp.send("Runtime.enable");
 
-    // Signed out, so this is the public sign-in screen.
-    await setViewport(cdp, DESKTOP);
-    await goto(cdp, `${BASE}/login`, 5000);
-    await waitForLoaded(cdp, "login");
-    await shot(cdp, "login");
-
-    console.log(`Signing in as ${owner[0]} (owner)…`);
-    await signIn(cdp, owner[0], owner[1]);
-    for (const [name, route, settle, vp] of OWNER_SHOTS) {
+    // Signed out: the public pages.
+    for (const [name, route, settle, vp] of wanted(PUBLIC_SHOTS)) {
       await capture(cdp, name, route, settle, vp);
     }
+
+    const ownerWanted = wanted(OWNER_SHOTS);
+    const deskWanted = wanted(DESK_SHOTS);
+
+    if (skipOwner || ownerWanted.length === 0) {
+      if (ownerWanted.length > 0) console.log("No --owner credentials — owner shots skipped.");
+    } else {
+      console.log(`Signing in as ${owner[0]} (owner)…`);
+      await signIn(cdp, owner[0], owner[1]);
+      for (const [name, route, settle, vp] of ownerWanted) {
+        await capture(cdp, name, route, settle, vp);
+      }
+
+      // The one-off owner screens below aren't in OWNER_SHOTS (they need a
+      // click or a lookup first), so a filtered run skips them rather than
+      // silently recapturing screens nobody asked for.
+      if (!only) {
 
     // The phone's overflow menu, open. Only meaningful at phone width --
     // the burger doesn't exist in the desktop sidebar.
@@ -427,23 +451,25 @@ async function run() {
       console.log("  (no member found — skipped owner-member-profile)");
     }
 
-    await goto(cdp, `${BASE}/owner`, 2500);
-    await signOut(cdp);
+      await goto(cdp, `${BASE}/owner`, 2500);
+      await signOut(cdp);
+      }
+    }
 
-    if (skipDesk) {
-      console.log("No --desk credentials given — desk shots skipped.");
+    if (skipDesk || deskWanted.length === 0) {
+      if (deskWanted.length > 0) console.log("No --desk credentials given — desk shots skipped.");
       console.log(`Done. ${fs.readdirSync(OUT).length} files in docs/shots/`);
       return;
     }
 
     console.log(`Signing in as ${desk[0]} (front desk)…`);
     await signIn(cdp, desk[0], desk[1]);
-    for (const [name, route, settle, vp] of DESK_SHOTS) {
+    for (const [name, route, settle, vp] of deskWanted) {
       await capture(cdp, name, route, settle, vp);
     }
 
     await setViewport(cdp, DESKTOP);
-    const deskMember = await pickMember(cdp);
+    const deskMember = only ? null : await pickMember(cdp);
     if (deskMember) {
       // Check-in mid-search, so the results table is visible.
       await goto(cdp, `${BASE}/desk`, 5000);

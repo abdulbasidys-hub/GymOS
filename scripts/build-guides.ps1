@@ -1,4 +1,4 @@
-# Renders the two HTML guides in docs/ to PDF using headless Edge.
+# Renders the three HTML guides in docs/ to PDF using headless Edge.
 # Run from anywhere:  powershell -File scripts\build-guides.ps1
 
 $ErrorActionPreference = "Stop"
@@ -14,7 +14,8 @@ if (-not $edge) { throw "Microsoft Edge not found - install it, or render the HT
 
 $guides = @(
   @{ Source = "owner-guide.html";        Output = "GymOS-Owner-Guide.pdf" },
-  @{ Source = "receptionist-guide.html"; Output = "GymOS-Receptionist-Guide.pdf" }
+  @{ Source = "receptionist-guide.html"; Output = "GymOS-Receptionist-Guide.pdf" },
+  @{ Source = "marketer-guide.html";     Output = "GymOS-Marketer-Guide.pdf" }
 )
 
 foreach ($guide in $guides) {
