@@ -191,6 +191,12 @@ function GymHeader({ gym, onSaved }) {
       ) : (
         <>
           <h1>{gym.name}</h1>
+          {/* Cards before Edit: printing a gym's cards is a thing done FOR
+              them on a schedule, while editing the name is a correction
+              done once. */}
+          <Link className="btn btn--inline" to={`/admin/gyms/${gym.id}/cards`}>
+            Membership cards
+          </Link>
           <button className="btn btn--inline" onClick={() => setEditing(true)}>
             Edit
           </button>

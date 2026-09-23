@@ -2901,3 +2901,216 @@ select option { background: var(--surface); color: var(--text); }
   .page { padding: 20px 14px; }
   .sidebar__link { min-width: 58px; padding: 8px 6px 7px; font-size: 10px; }
 }
+
+/* ============================================================
+   MEMBERSHIP CARDS (admin/MembershipCards.jsx)
+   ============================================================
+   A screen that exists to become paper. Everything here is sized in
+   millimetres rather than pixels, because the output is a physical card and
+   mm is the only unit that survives the trip to a printer unchanged.
+
+   The card is CR80 — 85.6 x 54mm — the bank-card size that laminating
+   pouches, wallets and card printers are all built around. The mockup in
+   docs/ is drawn squarer; the look below follows it exactly, the
+   proportions follow the standard. */
+
+.mcard {
+  position: relative;
+  width: 85.6mm;
+  height: 54mm;
+  border-radius: 3mm;
+  overflow: hidden;
+  background: #fff;
+  color: #111;
+  /* Fixed, not inherited: this must not move when somebody changes the app's
+     font scale, and it must not darken in dark mode — it is printed on white
+     card either way. */
+  font-family: "Inter Variable", Inter, system-ui, sans-serif;
+  box-shadow: 0 0 0 0.2mm rgba(0, 0, 0, 0.12);
+  padding: 4mm;
+  box-sizing: border-box;
+}
+
+.mcard__no {
+  position: absolute;
+  top: 4mm;
+  right: 4mm;
+  background: rgba(var(--accent-rgb), 0.14);
+  color: #111;
+  border-radius: 1.5mm;
+  padding: 1mm 2mm;
+  font-size: 2.6mm;
+  z-index: 2;
+}
+.mcard__no strong { color: var(--accent); letter-spacing: 0.02em; }
+
+.mcard__body { display: flex; gap: 3mm; margin-top: 7mm; position: relative; z-index: 2; }
+
+.mcard__rows { flex: 1; margin: 0; display: grid; gap: 1.1mm; }
+.mcard__rows > div {
+  display: grid;
+  grid-template-columns: 17mm 1fr;
+  gap: 2mm;
+  align-items: start;
+}
+.mcard__rows dt { font-size: 2.5mm; color: #666; }
+/* The divider between label and value, as a border rather than a character,
+   so it lines up down the whole column regardless of label length. */
+.mcard__rows dd {
+  margin: 0;
+  font-size: 2.6mm;
+  border-left: 0.3mm solid #ddd;
+  padding-left: 2mm;
+  line-height: 1.25;
+}
+.mcard__name { font-weight: 700; font-size: 3.1mm; }
+/* Two lines at most: a long address must not push the card's own layout
+   apart, so it is clamped rather than allowed to wrap indefinitely. */
+.mcard__address {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.mcard__photo {
+  width: 20mm;
+  height: 24mm;
+  flex: none;
+  border-radius: 1.5mm;
+  border: 0.3mm solid #ccc;
+  background: #eee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.mcard__photo img { width: 100%; height: 100%; object-fit: cover; }
+.mcard__photo-empty {
+  font-size: 1.9mm;
+  letter-spacing: 0.06em;
+  color: #999;
+  text-align: center;
+  padding: 0 1mm;
+}
+
+/* width:100% is load-bearing. An <svg> is a REPLACED element, so left:0 +
+   right:0 do NOT stretch it the way they would a div — with width auto it
+   takes its intrinsic size from the viewBox ratio, which at 22mm tall works
+   out as 67.7mm on an 85.6mm card. The sweep stopped 79% across, leaving the
+   bottom-right corner white, and "Powered by GymOS" is white text that sits
+   on it: all that showed was a green "OS" floating on nothing. */
+.mcard__wave {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 22mm;
+  z-index: 1;
+  display: block;
+}
+
+.mcard__tagline {
+  position: absolute;
+  left: 4mm;
+  bottom: 4mm;
+  z-index: 2;
+  font-size: 2.2mm;
+  letter-spacing: 0.1em;
+  line-height: 1.5;
+  font-weight: 600;
+  padding-left: 5mm;
+}
+.mcard__dash {
+  position: absolute;
+  left: 0;
+  top: 1.4mm;
+  width: 3.5mm;
+  height: 0.8mm;
+  border-radius: 0.4mm;
+  background: var(--accent);
+}
+.mcard__dash--under { position: static; display: block; margin: 0.6mm 0 0 auto; }
+
+.mcard__powered {
+  position: absolute;
+  right: 4mm;
+  bottom: 4mm;
+  z-index: 2;
+  text-align: right;
+  color: #fff;
+  line-height: 1.15;
+}
+.mcard__powered span { display: block; font-size: 2.1mm; }
+.mcard__powered strong { font-size: 3.4mm; }
+.mcard__powered strong span { display: inline; color: var(--accent); font-size: inherit; }
+
+/* ---- the back ---- */
+.mcard--back { display: flex; align-items: center; justify-content: center; }
+.mcard__watermark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.07;
+  z-index: 1;
+}
+.mcard__backbrand { position: relative; z-index: 2; display: flex; align-items: center; gap: 2.5mm; }
+.mcard__gymname { font-size: 5mm; font-weight: 800; letter-spacing: -0.01em; }
+.mcard__poweredby { font-size: 2mm; letter-spacing: 0.22em; color: #444; }
+.mcard__poweredby strong { color: var(--accent); }
+.mcard__url {
+  position: absolute;
+  right: 4mm;
+  bottom: 4mm;
+  z-index: 2;
+  font-size: 2.4mm;
+  font-weight: 600;
+}
+
+/* ---- sheets ---- */
+.card-sheet {
+  display: grid;
+  grid-template-columns: repeat(2, 85.6mm);
+  gap: 6mm;
+  justify-content: center;
+  margin: 0 auto 10mm;
+  padding: 6mm 0;
+}
+
+/* ---- print ----
+   The whole point of the screen. Chrome and the app shell go, the sheets
+   become pages, and each sheet gets its own page so a card is never split
+   across two. */
+@media print {
+  @page { size: A4 portrait; margin: 10mm; }
+
+  .cards-chrome,
+  .sidebar,
+  .nav-more,
+  .nav-sheet,
+  .nav-sheet__scrim { display: none !important; }
+
+  /* The app's shell is a flex row with a sidebar; printing needs a plain
+     block flow or the sheets inherit a layout built for a screen. */
+  .shell,
+  .shell__main,
+  .page,
+  .cards-screen { display: block !important; margin: 0 !important; padding: 0 !important; }
+
+  .card-sheet {
+    break-after: page;
+    page-break-after: always;
+    margin: 0;
+    padding: 0;
+    gap: 5mm;
+  }
+  .card-sheet:last-child { break-after: auto; page-break-after: auto; }
+  /* A card must never straddle a page break. */
+  .mcard { break-inside: avoid; page-break-inside: avoid; box-shadow: none; border: 0.2mm solid #ddd; }
+
+  /* Print the backgrounds — without this the wave, the photo box and the
+     number pill all come out white, which is most of the design. */
+  .mcard, .mcard * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

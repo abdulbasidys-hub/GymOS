@@ -15,6 +15,7 @@ import Settings from "./Settings";
 import Uploads from "./Uploads";
 import AttentionPage from "./AttentionPage";
 import Inbox from "./Inbox";
+import MembershipCards from "./MembershipCards";
 import MarketersList from "./MarketersList";
 import MarketersRevenue from "./MarketersRevenue";
 import AffiliateDetailPage from "./AffiliateDetailPage";
@@ -103,6 +104,7 @@ export default function AdminDashboard() {
             <Route index element={<Dashboard />} />
             <Route path="gyms" element={<GymsList />} />
             <Route path="gyms/:gymId" element={<GymDetailPage />} />
+            <Route path="gyms/:gymId/cards" element={<MembershipCards />} />
             {/* Drill-down only (Manage billing link, Subscriptions rows) — not in sidebar nav. */}
             <Route path="owners/:ownerId" element={<OwnerDetailPage />} />
             <Route path="subscriptions" element={<Subscriptions />} />
