@@ -7,7 +7,16 @@ import { db } from "./firebase";
 import { appendRecord } from "./ledger";
 import { localInvoke } from "./local/bridge";
 
-export function createEquipmentRecord({ gymId, memberId, planId, planName, startDate, expiryDate, paymentId }) {
+export function createEquipmentRecord({
+  gymId,
+  memberId,
+  planId,
+  planName,
+  startDate,
+  expiryDate,
+  paymentId,
+  imported = false,
+}) {
   return appendRecord("equipment_records", {
     gym_id: gymId,
     member_id: memberId,
@@ -15,7 +24,9 @@ export function createEquipmentRecord({ gymId, memberId, planId, planName, start
     plan_name: planName,
     start_date: startDate,
     expiry_date: expiryDate,
-    payment_id: paymentId,
+    // See the same two fields on createMembershipRecord.
+    payment_id: paymentId ?? null,
+    imported: !!imported,
   });
 }
 

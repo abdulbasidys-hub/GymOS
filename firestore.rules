@@ -142,7 +142,9 @@ service cloud.firestore {
         (isAffiliate() && resource.data.affiliate_id == request.auth.uid);
       allow create: if isSuperAdmin();
       allow update: if isSuperAdmin() ||
-        (isReceptionist() && inMyGym(gymId) && gymIsOperational(gymId) &&
+        // Owner included: minting a member number is part of creating a
+        // member, which an owner can now do at onboarding.
+        ((isReceptionist() || isOwner()) && inMyGym(gymId) && gymIsOperational(gymId) &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['member_seq']) &&
          request.resource.data.get('member_seq', 0) > resource.data.get('member_seq', 0)) ||
         // Platform heartbeat (data/gyms.js's reportGymClient) — which of the
@@ -244,7 +246,17 @@ service cloud.firestore {
     match /members/{memberId} {
       allow read: if isSuperAdmin() ||
         (inMyGym(resource.data.gym_id) && gymIsOperational(resource.data.gym_id));
-      allow create: if isReceptionist() && request.resource.data.gym_id in myGymIds() &&
+    // Owners can create these as well as receptionists, for ONE reason:
+    // bringing an existing gym's members across at onboarding
+    // (owner/ImportMembers.jsx). A gym that already has 300 members on paper
+    // cannot start using GymOS until those members exist in it, and that is
+    // the owner's job on setup day, not a receptionist's shift work.
+    //
+    // It is a widening, and a small one: an owner already reads every one of
+    // these, sets the prices they are created against, and hires and fires
+    // the receptionists who create them. Nothing here lets an owner touch
+    // another gym.
+      allow create: if (isReceptionist() || isOwner()) && request.resource.data.gym_id in myGymIds() &&
         gymIsOperational(request.resource.data.gym_id);
       allow update: if isReceptionist() && resource.data.gym_id in myGymIds() &&
         gymIsOperational(resource.data.gym_id) &&
@@ -261,7 +273,8 @@ service cloud.firestore {
     match /membership_records/{id} {
       allow read: if isSuperAdmin() ||
         (inMyGym(resource.data.gym_id) && gymIsOperational(resource.data.gym_id));
-      allow create: if isReceptionist() && request.resource.data.gym_id in myGymIds() &&
+      // Owner too — see the note on /members above.
+      allow create: if (isReceptionist() || isOwner()) && request.resource.data.gym_id in myGymIds() &&
         gymIsOperational(request.resource.data.gym_id);
       allow delete: if isSuperAdmin();
     }
@@ -269,7 +282,8 @@ service cloud.firestore {
     match /equipment_records/{id} {
       allow read: if isSuperAdmin() ||
         (inMyGym(resource.data.gym_id) && gymIsOperational(resource.data.gym_id));
-      allow create: if isReceptionist() && request.resource.data.gym_id in myGymIds() &&
+      // Owner too — see the note on /members above.
+      allow create: if (isReceptionist() || isOwner()) && request.resource.data.gym_id in myGymIds() &&
         gymIsOperational(request.resource.data.gym_id);
       allow delete: if isSuperAdmin();
     }

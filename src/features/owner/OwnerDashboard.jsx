@@ -4,13 +4,14 @@ import Logo from "../../components/Logo";
 import LockedScreen from "../../components/LockedScreen";
 import ThemeToggle from "../../components/ThemeToggle";
 import NavMore from "../../components/NavMore";
-import { IconDashboard, IconPeople, IconClipboard, IconChart, IconBadge, IconGear, IconDownload, IconLogout, IconSync, IconBuilding } from "../../components/NavIcons";
+import { IconDashboard, IconPeople, IconClipboard, IconChart, IconBadge, IconGear, IconDownload, IconImport, IconLogout, IconSync, IconBuilding } from "../../components/NavIcons";
 import OwnerHome from "./OwnerHome";
 import Attendance from "./Attendance";
 import Finances from "./Finances";
 import ManageStaff from "./ManageStaff";
 import StaffProfile from "./StaffProfile";
 import ExpiringSoon from "./ExpiringSoon";
+import ImportMembers from "./ImportMembers";
 import GymSettings from "./GymSettings";
 import MembersList from "./MembersList";
 import CrossBranchReport from "./CrossBranchReport";
@@ -41,6 +42,9 @@ const NAV = [
   { to: "/owner/attendance", label: "Attendance", Icon: IconClipboard },
   { to: "/owner/finances", label: "Finances", Icon: IconChart, tab: true, tabOrder: 3 },
   { to: "/owner/staff", label: "Team", Icon: IconBadge },
+  // Setup-day work, so it sits with the other occasional pages behind the
+  // burger on a phone rather than taking a tab from Members or Finances.
+  { to: "/owner/import", label: "Add existing", Icon: IconImport },
   { to: "/owner/downloads", label: "Downloads", Icon: IconDownload },
   { to: "/owner/settings", label: "Settings", Icon: IconGear, tab: true, tabOrder: 4 },
 ];
@@ -176,6 +180,7 @@ export default function OwnerDashboard() {
             <Route path="staff" element={<ManageStaff />} />
             <Route path="staff/:staffId" element={<StaffProfile />} />
             <Route path="branches" element={<CrossBranchReport />} />
+            <Route path="import" element={<ImportMembers />} />
             <Route path="downloads" element={<DownloadsPage />} />
             <Route path="settings" element={<GymSettings />} />
             <Route path="member/:memberId" element={<MemberProfile />} />

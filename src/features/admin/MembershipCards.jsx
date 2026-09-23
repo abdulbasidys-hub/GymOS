@@ -39,6 +39,21 @@ export default function MembershipCards() {
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [hint, setHint] = useState("");
+
+  // Both buttons end at window.print(); only the sentence above it differs.
+  // Telling somebody which destination to choose BEFORE the dialog covers
+  // the screen is the whole value, because once it is open they cannot read
+  // anything behind it.
+  function printCards(mode) {
+    setHint(
+      mode === "pdf"
+        ? "In the dialog that opens, set Destination to “Save as PDF”, then Save."
+        : "In the dialog that opens, pick your printer. Print the front sheets, then put them back in and print the last sheet on the reverse."
+    );
+    // A tick, so the sentence is painted before print() freezes the page.
+    setTimeout(() => window.print(), 60);
+  }
 
   useEffect(() => {
     let alive = true;
@@ -58,8 +73,14 @@ export default function MembershipCards() {
         }
 
         setCards(
+          // EVERY member, active or not. A card is a physical object printed
+          // in a batch and handed over weeks later; deciding who gets one
+          // from today's active flag would mean somebody who lapsed for a
+          // fortnight silently has no card when the box arrives. Who is
+          // allowed in is decided at the door, every time, not by who holds
+          // a piece of plastic.
           members
-            .filter((m) => m.active !== false)
+            .slice()
             .sort(byMemberNumber)
             .map((m) => ({
               member: m,
@@ -93,21 +114,33 @@ export default function MembershipCards() {
         <div className="card">
           <div className="status-block__head">
             <h2>Membership cards</h2>
-            <button className="btn btn--primary btn--inline" onClick={() => window.print()}>
-              Print / Save as PDF
-            </button>
+            <div className="page-actions">
+              {/* Two buttons for one browser dialog, deliberately. Both open
+                  the same print sheet — the browser has no separate "export
+                  PDF" API — but which one you press decides what you pick as
+                  the destination, and being told that in advance is the
+                  difference between getting paper and getting a file. */}
+              <button className="btn btn--primary btn--inline" onClick={() => printCards("print")}>
+                Print
+              </button>
+              <button className="btn btn--inline" onClick={() => printCards("pdf")}>
+                Save as PDF
+              </button>
+            </div>
           </div>
           <p className="muted hint">
             {cards.length === 0
-              ? "This gym has no active members yet."
+              ? "This gym has no members yet."
               : `${cards.length} card${cards.length === 1 ? "" : "s"} across ${pages.length} sheet${
                   pages.length === 1 ? "" : "s"
                 }, in the order members were registered. The last sheet is the back design — print it on the reverse.`}
           </p>
           <p className="muted hint">
             Members with no photo print with an empty photo box, so the card can still be issued and
-            the photo added by hand.
+            the photo added by hand. Lapsed members get a card too &mdash; entry is decided at the
+            door, not by who holds one.
           </p>
+          {hint && <p className="notice">{hint}</p>}
         </div>
       </div>
 

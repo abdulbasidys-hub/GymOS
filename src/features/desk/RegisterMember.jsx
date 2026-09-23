@@ -110,12 +110,17 @@ export default function RegisterMember() {
     e.preventDefault();
     setError("");
 
+    // Required = what the membership card prints, and nothing else.
+    //
+    // Weight, height and the emergency contact used to block registration
+    // too. They are genuinely useful and the form still asks for them, but
+    // they are not worth turning somebody away at the desk over: a
+    // receptionist with a queue and a member who does not know their own
+    // height either invents one or gives up, and an invented number is worse
+    // than an empty field. All of them stay editable from the member's own
+    // profile afterwards.
     if (!form.name.trim()) return setError("Enter the member's name.");
     if (!form.phone.trim()) return setError("Enter a phone number.");
-    if (!form.weight.trim()) return setError("Enter the member's weight.");
-    if (!form.height.trim()) return setError("Enter the member's height.");
-    if (!form.emergencyName.trim()) return setError("Enter an emergency contact name.");
-    if (!form.emergencyPhone.trim()) return setError("Enter an emergency contact phone number.");
     if (!form.address.trim()) return setError("Enter an address.");
     for (const f of customFields) {
       if (f.required && !String(customValues[f.id] ?? "").trim()) {
@@ -304,12 +309,12 @@ export default function RegisterMember() {
 
             <div className="row2">
               <label className="field">
-                <span>Weight (kg)</span>
-                <input type="number" min="0" value={form.weight} onChange={set("weight")} required />
+                <span>Weight (kg) (optional)</span>
+                <input type="number" min="0" value={form.weight} onChange={set("weight")} />
               </label>
               <label className="field">
-                <span>Height (cm)</span>
-                <input type="number" min="0" value={form.height} onChange={set("height")} required />
+                <span>Height (cm) (optional)</span>
+                <input type="number" min="0" value={form.height} onChange={set("height")} />
               </label>
             </div>
           </div>
@@ -318,12 +323,12 @@ export default function RegisterMember() {
             <h2>Emergency contact &amp; address</h2>
             <div className="row2">
               <label className="field">
-                <span>Emergency contact name</span>
-                <input value={form.emergencyName} onChange={set("emergencyName")} required />
+                <span>Emergency contact name (optional)</span>
+                <input value={form.emergencyName} onChange={set("emergencyName")} />
               </label>
               <label className="field">
-                <span>Emergency contact phone</span>
-                <input value={form.emergencyPhone} onChange={set("emergencyPhone")} required />
+                <span>Emergency contact phone (optional)</span>
+                <input value={form.emergencyPhone} onChange={set("emergencyPhone")} />
               </label>
             </div>
 

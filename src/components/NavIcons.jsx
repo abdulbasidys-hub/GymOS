@@ -128,6 +128,19 @@ export function IconInbox() {
   );
 }
 
+// An arrow going INTO a tray — bringing existing records in, as opposed to
+// IconDownload's arrow coming out of the cloud.
+export function IconImport() {
+  return base(
+    <>
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+      <polyline points="7 9 12 14 17 9" />
+      <line x1="12" y1="14" x2="12" y2="3" />
+      <line x1="4" y1="17" x2="20" y2="17" />
+    </>
+  );
+}
+
 export function IconPlus() {
   return base(
     <>

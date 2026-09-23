@@ -6,7 +6,16 @@ import { db } from "./firebase";
 import { appendRecord } from "./ledger";
 import { localInvoke } from "./local/bridge";
 
-export function createMembershipRecord({ gymId, memberId, planId, planName, startDate, expiryDate, paymentId }) {
+export function createMembershipRecord({
+  gymId,
+  memberId,
+  planId,
+  planName,
+  startDate,
+  expiryDate,
+  paymentId,
+  imported = false,
+}) {
   return appendRecord("membership_records", {
     gym_id: gymId,
     member_id: memberId,
@@ -14,7 +23,13 @@ export function createMembershipRecord({ gymId, memberId, planId, planName, star
     plan_name: planName,
     start_date: startDate,
     expiry_date: expiryDate,
-    payment_id: paymentId,
+    // Null for an imported member, and only for one: they paid this gym
+    // before it ran on GymOS, so there is no payment here to point at.
+    payment_id: paymentId ?? null,
+    // Marks that absence as deliberate. Without it a future reader finding a
+    // membership with no payment has to guess between "brought across at
+    // onboarding" and "something went wrong half way through a write".
+    imported: !!imported,
   });
 }
 
