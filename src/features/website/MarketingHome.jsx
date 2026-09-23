@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import WebsiteLayout from "../../components/website/WebsiteLayout";
+import Reveal from "../../components/website/Reveal";
 import { IconBolt, IconCheckSmall } from "../../components/website/WebsiteIcons";
 import { IconSync } from "../../components/NavIcons";
 
@@ -77,14 +78,19 @@ export default function MarketingHome() {
       </section>
 
       <section className="site-section">
-        <h2 className="site-section__title">Built for speed, designed for control</h2>
+        <Reveal as="h2" className="site-section__title">
+          Built for speed, designed for control
+        </Reveal>
         <div className="site-feature-grid">
-          {FEATURES.map(({ Icon, title, body }) => (
-            <div className="site-feature-card" key={title}>
+          {/* Staggered by index so the cards arrive in reading order rather
+              than all at once. Capped at four steps — past that the last
+              card is waiting long enough to feel broken. */}
+          {FEATURES.map(({ Icon, title, body }, i) => (
+            <Reveal className="site-feature-card" key={title} delay={Math.min(i, 3) * 70}>
               <div className="site-feature-card__icon"><Icon /></div>
               <h3>{title}</h3>
               <p>{body}</p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </section>
@@ -94,17 +100,17 @@ export default function MarketingHome() {
           close, instead of competing with the hero for attention as a
           tiny eyebrow pill above the headline (the more common pattern,
           and the one this replaced). */}
-      <section className="site-statement">
+      <Reveal as="section" className="site-statement">
         <p className="site-statement__text">
           Run your gym <span className="site-statement__accent">smarter</span>.
         </p>
-      </section>
+      </Reveal>
 
-      <section className="site-cta">
+      <Reveal as="section" className="site-cta">
         <h2>Ready to run a tighter front desk?</h2>
         <p>Tell us about your gym and we&rsquo;ll help you get set up.</p>
         <Link to="/contact" className="btn btn--primary btn--inline">Get started</Link>
-      </section>
+      </Reveal>
     </WebsiteLayout>
   );
 }

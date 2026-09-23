@@ -8,6 +8,7 @@
 // redirects them. This routing is convenience; the real wall is
 // firestore.rules.
 
+import { lazy, Suspense } from "react";
 import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth";
 import { ThemeProvider } from "./theme";
@@ -19,15 +20,27 @@ import ResponsiveTables from "./components/ResponsiveTables";
 import LoginPage from "./features/LoginPage";
 import SetPasswordPage from "./features/SetPasswordPage";
 import SuspendedScreen from "./components/SuspendedScreen";
-import DeskHome from "./features/desk/DeskHome";
-import OwnerDashboard from "./features/owner/OwnerDashboard";
-import AdminDashboard from "./features/admin/AdminDashboard";
-import AffiliateHome from "./features/affiliate/AffiliateHome";
-import MarketingHome from "./features/website/MarketingHome";
-import Product from "./features/website/Product";
-import Pricing from "./features/website/Pricing";
-import Contact from "./features/website/Contact";
-import BecomeAffiliate from "./features/website/BecomeAffiliate";
+// Split per destination, not eagerly imported.
+//
+// Every one of these used to be in the single entry chunk, so a receptionist
+// opening the front desk downloaded the super-admin dashboard, the affiliate
+// portal and the whole marketing site before the check-in screen could paint
+// — roughly a megabyte of JavaScript to render a search box. Nobody is ever
+// more than one of these roles, and a signed-in user never sees the marketing
+// pages at all, so none of it belongs in the first download.
+//
+// The boundary is deliberately per ROLE rather than per screen: everything
+// inside /desk is wanted the moment a receptionist arrives, and splitting
+// further would trade one wait for several smaller ones.
+const DeskHome = lazy(() => import("./features/desk/DeskHome"));
+const OwnerDashboard = lazy(() => import("./features/owner/OwnerDashboard"));
+const AdminDashboard = lazy(() => import("./features/admin/AdminDashboard"));
+const AffiliateHome = lazy(() => import("./features/affiliate/AffiliateHome"));
+const MarketingHome = lazy(() => import("./features/website/MarketingHome"));
+const Product = lazy(() => import("./features/website/Product"));
+const Pricing = lazy(() => import("./features/website/Pricing"));
+const Contact = lazy(() => import("./features/website/Contact"));
+const BecomeAffiliate = lazy(() => import("./features/website/BecomeAffiliate"));
 
 function Splash({ text = "Loading…" }) {
   return (
@@ -140,6 +153,10 @@ export default function App() {
               onto a phone — see the component. Same placement and
               reasoning as ActiveTabIntoView above. */}
           <ResponsiveTables />
+          {/* The same Splash the app already shows while auth resolves, so a
+              chunk still arriving looks like the wait it replaced rather than
+              a new kind of blank. */}
+          <Suspense fallback={<Splash />}>
           <Routes>
             <Route
               path="/desk/*"
@@ -170,6 +187,7 @@ export default function App() {
             />
             <Route path="*" element={<Home />} />
           </Routes>
+          </Suspense>
         </Router>
       </AuthProvider>
     </ThemeProvider>

@@ -3114,3 +3114,91 @@ select option { background: var(--surface); color: var(--text); }
      number pill all come out white, which is most of the design. */
   .mcard, .mcard * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* ============================================================
+   MARKETING SITE MOTION
+   ============================================================
+   Restraint is the point. Everything here is opacity and a few pixels of
+   translate, on a single easing curve, over 0.5s or less. No bouncing, no
+   sliding in from the sides, nothing that moves while it is being read.
+
+   One rule governs the lot: motion may draw the eye to content arriving, it
+   may not become content itself. */
+
+:root {
+  --ease-out-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* -- scroll reveal (components/website/Reveal.jsx) -- */
+.reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.55s var(--ease-out-soft), transform 0.55s var(--ease-out-soft);
+  /* Tells the compositor what is about to change, so the first frame of the
+     transition isn't the one that stutters. Removed once shown: a permanent
+     will-change on many elements costs memory for no benefit. */
+  will-change: opacity, transform;
+}
+.reveal--in { opacity: 1; transform: none; will-change: auto; }
+
+/* -- hero entrance --
+   The one thing that animates without being scrolled to, because it is
+   already on screen when the page opens. Staggered by a tenth of a second so
+   the headline leads and the rest follows it. */
+@keyframes site-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+.site-hero__title,
+.site-hero__sub,
+.site-hero__actions,
+.site-hero__visual {
+  animation: site-rise 0.7s var(--ease-out-soft) both;
+}
+.site-hero__sub { animation-delay: 0.08s; }
+.site-hero__actions { animation-delay: 0.16s; }
+.site-hero__visual { animation-delay: 0.24s; }
+
+/* -- hover, for things that are actually clickable --
+   Deliberately NOT applied to the feature cards on the homepage: they do
+   nothing when clicked, and a card that lifts under the cursor promises a
+   link that isn't there. */
+.site-pricing-card {
+  transition: transform 0.3s var(--ease-out-soft), box-shadow 0.3s var(--ease-out-soft);
+}
+.site-pricing-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.09);
+}
+
+.btn { transition: transform 0.16s var(--ease-out-soft), background 0.16s, border-color 0.16s, color 0.16s; }
+/* Press, not bounce: the button moves a whisker on the way down and nothing
+   on the way up. */
+.btn:active { transform: translateY(1px); }
+
+.site-nav__link { transition: color 0.2s, background 0.2s; }
+
+/* -- the tagline statement --
+   It is the brand line, so it gets the one piece of deliberate flourish on
+   the site: the accent word arrives a beat after the rest of the sentence. */
+.site-statement__accent {
+  display: inline-block;
+  animation: site-rise 0.6s var(--ease-out-soft) both;
+  animation-delay: 0.25s;
+}
+
+/* -- REDUCED MOTION --
+   Not "less motion", none. Anyone who has asked the operating system for
+   this has asked for a reason, and for some of them the reason is that
+   movement makes them ill. Everything still ends up exactly where it
+   belongs, fully visible — it just gets there instantly. */
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .site-hero__title,
+  .site-hero__sub,
+  .site-hero__actions,
+  .site-hero__visual,
+  .site-statement__accent { animation: none; }
+  .site-pricing-card:hover { transform: none; }
+  .btn:active { transform: none; }
+}

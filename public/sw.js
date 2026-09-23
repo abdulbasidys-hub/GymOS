@@ -9,7 +9,9 @@
  * 2. Make the shell load instantly and survive a dropped signal. A gym's
  *    wifi at the front desk is not reliable; the app opening to its own
  *    login screen and saying "can't reach the server" is a much better
- *    failure than the browser's offline dinosaur.
+ *    failure than the browser's offline dinosaur. Since v2 "instantly"
+ *    means it — navigations are served from cache and refreshed behind
+ *    the scenes, rather than blocking on the network first.
  *
  * What it deliberately does NOT do: touch anything cross-origin. Every
  * Firebase call (auth, Firestore, Storage) goes to a googleapis.com
@@ -33,7 +35,7 @@
  * written under the old rules.
  */
 
-const CACHE = "gymos-shell-v1";
+const CACHE = "gymos-shell-v2";
 
 // The SPA entry point. Every route in the app (/login, /desk, /owner/...)
 // is served this same file by Vercel's catch-all rewrite, so one cached
@@ -76,17 +78,51 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname === "/sw.js") return;
 
   // A page load (typing the URL, launching the installed app, a reload).
-  // Network first so a new deploy is picked up the moment there is signal,
-  // with the cached shell as the offline answer.
+  //
+  // CACHE FIRST, not network first — this is the single biggest thing
+  // between tapping the icon and seeing the app. Network-first meant every
+  // launch blocked on a round trip for index.html before a pixel could be
+  // drawn, so on a slow or flaky connection the app sat on a white screen
+  // even though a perfectly good copy was already on the device. That is
+  // the "PWA takes ages to open" complaint, and it was self-inflicted.
+  //
+  // The shell is ~2KB of HTML whose only job is to point at fingerprinted
+  // assets, so a stale copy is almost never wrong — and when it is, the
+  // background refresh below has already replaced it for the next launch.
+  // The cost is that a fresh deploy is picked up on the SECOND open rather
+  // than the first, which is the normal trade every app-shell PWA makes.
+  //
+  // A reload (Ctrl+R, pull-to-refresh) deliberately skips the cache, so
+  // there is always an obvious way to force the new version immediately.
   if (request.mode === "navigate") {
+    if (request.cache === "reload" || request.cache === "no-cache") {
+      event.respondWith(
+        fetch(request)
+          .then((response) => {
+            const copy = response.clone();
+            caches.open(CACHE).then((cache) => cache.put(SHELL, copy));
+            return response;
+          })
+          .catch(() => caches.match(SHELL))
+      );
+      return;
+    }
+
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put(SHELL, copy));
-          return response;
-        })
-        .catch(() => caches.match(SHELL))
+      caches.match(SHELL).then((hit) => {
+        // Kick the refresh off regardless, but never await it when we
+        // already have a shell to hand back.
+        const network = fetch(request)
+          .then((response) => {
+            if (response.ok) {
+              const copy = response.clone();
+              caches.open(CACHE).then((cache) => cache.put(SHELL, copy));
+            }
+            return response;
+          })
+          .catch(() => hit);
+        return hit || network;
+      })
     );
     return;
   }
