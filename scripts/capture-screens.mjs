@@ -56,10 +56,17 @@ const skipDesk = !desk[0] || !desk[1];
 const DESKTOP = { width: 1440, height: 900 };
 const PHONE = { width: 414, height: 896 };
 
+// Full page rather than a viewport crop: the whole document, header to
+// footer, so nothing is cut off mid-card. 4x rather than the usual 2x because
+// the result gets scaled down a long way when it lands in a PDF or a deck,
+// and the pricing cards are mostly small text. Matches the framing of the
+// hand-made docs/pricing-page.png this replaced.
+const FULL_PAGE = { width: 1440, height: 900, deviceScaleFactor: 4, fullPage: true };
+
 // Signed OUT — the public site. Captured before any sign-in.
 const PUBLIC_SHOTS = [
   ["login", "/login", 5000, DESKTOP],
-  ["pricing", "/pricing", 5000, DESKTOP],
+  ["pricing", "/pricing", 5000, FULL_PAGE],
 ];
 
 // [file name, route, settle ms, viewport]
@@ -146,13 +153,30 @@ async function connect() {
   throw new Error("Could not attach to Edge.");
 }
 
-async function setViewport(cdp, { width, height }) {
+async function setViewport(cdp, { width, height, deviceScaleFactor = 2 }) {
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width,
     height,
-    deviceScaleFactor: 2,
+    deviceScaleFactor,
     mobile: width < 600,
   });
+}
+
+/** Grow the viewport to the document's own height so one capture holds the
+ *  whole page. Done by re-applying the metrics override rather than with
+ *  captureBeyondViewport, because the override is what the page's own media
+ *  queries and sticky header react to — capturing "beyond" a short viewport
+ *  leaves the sticky header painted part-way down the image. */
+async function fitToPage(cdp, vp) {
+  const height = await cdp.eval(`Math.ceil(Math.max(
+    document.documentElement.scrollHeight,
+    document.body ? document.body.scrollHeight : 0
+  ))`);
+  if (!height) return;
+  await setViewport(cdp, { ...vp, height });
+  // Let the resize settle: a layout this tall re-flows, and anything
+  // positioned against the viewport moves.
+  await sleep(900);
 }
 
 async function goto(cdp, url, settle) {
@@ -245,6 +269,9 @@ async function capture(cdp, name, route, settle, vp) {
     // A beat after the data lands, so charts and images have painted.
     await sleep(1200);
     problem = await pageProblem(cdp);
+    // Only once the content is real — measuring a skeleton or a blank
+    // document would size the image to the wrong page.
+    if (!problem && vp.fullPage) await fitToPage(cdp, vp);
     if (!problem) break;
     if (attempt < 3) {
       console.log(`  (retrying ${name}: ${problem})`);
