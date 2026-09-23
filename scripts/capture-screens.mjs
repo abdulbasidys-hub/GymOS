@@ -195,12 +195,49 @@ async function shot(cdp, name) {
 // Every screenshot goes through here, so none can quietly skip the wait,
 // which is exactly how the old run() ended up full of "Loading…" (it had a
 // retry helper, shotClean below, that it never actually called).
+// A rendered screen, or a reason it isn't one. Returns "" when the page
+// looks real.
+//
+// waitForLoaded alone is not enough, and this was found the hard way: a page
+// that renders NOTHING contains no "Loading…" either, so it sails through
+// that check and captures a pure white PNG. One shot (desk-finances) came
+// back blank exactly this way while its neighbours were fine.
+async function pageProblem(cdp) {
+  return cdp.eval(`(() => {
+    const text = document.body ? document.body.innerText.trim() : "";
+    // The sidebar alone is ~40 characters, so anything under that is not a
+    // screen — it is a blank or half-mounted document.
+    if (text.length < 40) return "blank page (" + text.length + " chars)";
+    const err = document.querySelector(".form-error");
+    if (err && err.offsetParent !== null) return "error: " + err.textContent.trim().slice(0, 60);
+    return "";
+  })()`);
+}
+
+// setViewport -> navigate -> settle -> WAIT FOR LOAD -> check it rendered ->
+// capture. Every screenshot goes through here, so none can quietly skip the
+// wait, which is exactly how the old run() ended up full of "Loading…" (it
+// had a retry helper, shotClean below, that it never actually called).
+//
+// Retries the whole navigation rather than just waiting longer: a blank or
+// errored screen is usually a load that went wrong, and waiting on a broken
+// render never fixes it.
 async function capture(cdp, name, route, settle, vp) {
-  await setViewport(cdp, vp);
-  await goto(cdp, `${BASE}${route}`, settle);
-  await waitForLoaded(cdp, name);
-  // A beat after the data lands, so charts and images have painted.
-  await sleep(1200);
+  let problem = "";
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await setViewport(cdp, vp);
+    await goto(cdp, `${BASE}${route}`, settle);
+    await waitForLoaded(cdp, name);
+    // A beat after the data lands, so charts and images have painted.
+    await sleep(1200);
+    problem = await pageProblem(cdp);
+    if (!problem) break;
+    if (attempt < 3) {
+      console.log(`  (retrying ${name}: ${problem})`);
+      await sleep(2000);
+    }
+  }
+  if (problem) console.log(`  (WARNING: ${name} captured anyway — ${problem})`);
   await shot(cdp, name);
 }
 
