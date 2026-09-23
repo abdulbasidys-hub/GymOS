@@ -41,6 +41,12 @@ function KindEditor({ kind, entry, onChanged }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [progress, setProgress] = useState("");
+  // Collapsed until asked for. Four kinds x a two-tab form with five inputs
+  // each was around thirty controls stacked down one page, none of which are
+  // touched on a normal visit — publishing a download is something that
+  // happens a handful of times a year. What matters at a glance is which of
+  // the four are live, and that was the one thing the page buried.
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     setVersion(entry?.version || "");
@@ -66,6 +72,7 @@ function KindEditor({ kind, entry, onChanged }) {
       setUrl("");
       setFileName("");
       setFile(null);
+      setOpen(false);
       onChanged();
     } catch (err) {
       setError(err?.message || "Couldn't publish this download.");
@@ -91,11 +98,40 @@ function KindEditor({ kind, entry, onChanged }) {
 
   return (
     <div className="card">
-      <h2>{kind.label}</h2>
-      <p className="muted hint">{kind.hint}</p>
+      <div className="status-block__head">
+        <div>
+          <h2>{kind.label}</h2>
+          <p className="muted hint">{kind.hint}</p>
+        </div>
+        <div className="page-actions">
+          {open ? (
+            <button className="btn btn--inline" type="button" onClick={() => setOpen(false)} disabled={busy}>
+              Cancel
+            </button>
+          ) : (
+            <>
+              {/* "Add" or "Replace" — the word says what pressing it will do
+                  to the thing customers currently see, which is the only
+                  question being asked here. */}
+              <button
+                className={`btn btn--inline ${entry ? "" : "btn--primary"}`}
+                type="button"
+                onClick={() => setOpen(true)}
+              >
+                {entry ? "Replace" : "Add"}
+              </button>
+              {entry && (
+                <button className="btn btn--inline" type="button" onClick={unpublish} disabled={busy}>
+                  Unpublish
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
 
       {entry ? (
-        <p className="muted section-top">
+        <p className="muted">
           <strong>Published.</strong>{" "}
           {[
             entry.version && `Version ${entry.version}`,
@@ -108,9 +144,10 @@ function KindEditor({ kind, entry, onChanged }) {
             .join(" · ")}
         </p>
       ) : (
-        <p className="muted section-top">Not published yet — customers see this as unavailable.</p>
+        <p className="muted">Not published yet — customers see this as unavailable.</p>
       )}
 
+      {open && (
       <form onSubmit={publish} className="section-top">
         <div className="tabs">
           <button
@@ -176,19 +213,9 @@ function KindEditor({ kind, entry, onChanged }) {
           <button className="btn btn--primary btn--inline" type="submit" disabled={busy}>
             {busy ? "Working…" : entry ? "Replace" : "Publish"}
           </button>
-          {entry && (
-            <button
-              className="btn btn--inline"
-              type="button"
-              onClick={unpublish}
-              disabled={busy}
-              style={{ marginLeft: 10 }}
-            >
-              Unpublish
-            </button>
-          )}
         </div>
       </form>
+      )}
     </div>
   );
 }
@@ -215,8 +242,9 @@ export default function Uploads() {
       <div className="page-header">
         <h1>Uploads</h1>
         <p>
-          Files you publish for gyms to download themselves after signing in. Owners see the app and
-          the owner&rsquo;s guide; receptionists see the app and the front-desk guide.
+          Files people download for themselves after signing in. Owners get the app and the
+          owner&rsquo;s guide; receptionists get the front-desk guide only; marketers get the app,
+          both role guides and their own. Nothing here is visible to anyone until you publish it.
         </p>
       </div>
 
