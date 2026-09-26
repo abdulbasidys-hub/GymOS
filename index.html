@@ -39,6 +39,16 @@
          installed app opens the sign-in screen and never the marketing
          site. src/lib/standalone.js is the backstop for URLs that arrive
          some other way. -->
+    <!-- Open the TCP+TLS handshakes to Firebase while the bundle is still
+         downloading. Sign-in cannot start until the app has both the JS and
+         a connection to these two hosts, and on a weak link the handshake is
+         a meaningful slice of the wait — doing it in parallel with the
+         download costs nothing and removes it from the critical path.
+         Cross-origin, so crossorigin is required or the connection is opened
+         and then thrown away unused. -->
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin />
+    <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <!-- iOS ignores the manifest's icons and reads only this. -->
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -67,7 +77,47 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- A first paint that does NOT wait for the bundle.
+         index.html arrives from the service worker's cache almost
+         instantly, but the app inside it is ~750KB of JavaScript, so on a
+         weak connection the screen stayed WHITE for as long as that took —
+         and only then showed the app's own "Loading". The complaint was
+         never really the loading screen, it was the blank wall in front of
+         it.
+         This is the same mark and wording the app's own <Splash> uses, in
+         about 20 lines of inline markup, so the handover is invisible.
+         React's createRoot().render() clears the container on its first
+         commit, so there is nothing to tear down by hand. -->
+    <style>
+      #boot {
+        min-height: 100vh;
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 14px;
+        font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      #boot img { width: 59px; height: auto; }
+      #boot p { margin: 0; font-size: 14px; color: #6b7280; }
+      /* Held back a beat: on a fast connection or a warm cache the app is up
+         within a couple of hundred milliseconds, and flashing a splash for
+         one frame looks worse than showing nothing at all. */
+      #boot { animation: boot-in 0.2s ease-out 0.25s both; }
+      @keyframes boot-in { from { opacity: 0 } to { opacity: 1 } }
+      @media (prefers-color-scheme: dark) {
+        :root[data-theme="dark"] #boot p, :root:not([data-theme="light"]) #boot p { color: #9ca3af; }
+      }
+    </style>
+    <div id="root">
+      <div id="boot">
+        <!-- Root-absolute, which is right for the web build but 404s under
+             Electron's file:// load. Hide it rather than show a broken-image
+             glyph; the desktop app loads from local disk fast enough that
+             this splash is almost never seen there anyway. -->
+        <img src="/logo.png" alt="" width="59" onerror="this.style.display='none'" />
+        <p>Loading&hellip;</p>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

@@ -21,4 +21,35 @@ import react from "@vitejs/plugin-react";
 export default defineConfig(({ mode }) => ({
   base: mode === "electron" ? "./" : "/",
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        // Split the two big third-party lumps out of the app's own chunk.
+        //
+        // This does NOT reduce what a first-time visitor downloads — the
+        // same bytes still arrive, just in three files instead of one. What
+        // it changes is every load AFTER that, which is the one a gym
+        // actually lives with: these chunks are fingerprinted by content, so
+        // React and Firebase keep their filenames across a deploy and stay
+        // in the service worker's cache. Before this, shipping a one-line
+        // fix changed the hash on all 751KB and every device re-downloaded
+        // Firebase to get it.
+        //
+        // Firebase and React are separated from each other for the same
+        // reason at a smaller scale: a Firebase SDK bump should not
+        // invalidate React, or the other way round.
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          if (id.includes("@firebase") || id.includes("/firebase/")) return "firebase";
+          if (id.includes("/react/") || id.includes("/react-dom/") || id.includes("/scheduler/")) {
+            return "react";
+          }
+        },
+      },
+    },
+    // The entry is legitimately large because Firestore is; the warning at
+    // 500KB was only ever noise here, and raising it means a real jump in
+    // size still gets flagged.
+    chunkSizeWarningLimit: 900,
+  },
 }));
