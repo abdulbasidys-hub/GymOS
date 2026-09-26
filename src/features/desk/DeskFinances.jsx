@@ -68,6 +68,7 @@ export default function DeskFinances() {
                     <th>Plan</th>
                     <th>For</th>
                     <th>Amount</th>
+                    <th>Paid by</th>
                     <th>Time</th>
                   </tr>
                 </thead>
@@ -78,6 +79,9 @@ export default function DeskFinances() {
                       <td>{p.plan_name}</td>
                       <td className="muted">{p.for}</td>
                       <td>{formatMoney(p.amount, gym?.currency_code, gym?.country_code)}</td>
+                      {/* Payments taken before this field existed read back
+                          as cash, which is what they were. */}
+                      <td className="muted">{p.method === "transfer" ? "Transfer" : "Cash"}</td>
                       <td className="muted">{formatDateTime(p.paid_at)}</td>
                     </tr>
                   ))}

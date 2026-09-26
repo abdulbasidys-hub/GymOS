@@ -23,6 +23,7 @@ import EntryVerdict from "../components/EntryVerdict";
 import StatusBadge from "../components/StatusBadge";
 import HistoryList from "../components/HistoryList";
 import PlanPicker from "../components/PlanPicker";
+import PaymentMethodPicker from "../components/PaymentMethodPicker";
 import PhoneNumber from "../components/PhoneNumber";
 import { formatMoney, formatDate, formatDateTime, toDate, startOfDay, capitalize } from "../lib/helpers";
 import { resolveMemberPhotoSrc } from "../data/local/photoCache";
@@ -53,6 +54,7 @@ export default function MemberProfile() {
   const [error, setError] = useState("");
   const [tab, setTab] = useState("payments");
   const [busy, setBusy] = useState(false);
+  const [payMethod, setPayMethod] = useState("cash");
 
   // Bio-data edit (BUILD.md §15) — desk only, matching this file's own
   // existing "owners have R-only on members" note above; never touches
@@ -171,6 +173,7 @@ export default function MemberProfile() {
     setError("");
     try {
       const payment = await createPayment({
+        method: payMethod,
         gymId,
         memberId: member.id,
         planId: plan.id,
@@ -367,6 +370,11 @@ export default function MemberProfile() {
 
       {isDesk && (
         <>
+          {/* Above the verdict, not buried in the plan cells: it applies to
+              whichever of the two the receptionist is about to take, and
+              asking after the money has been recorded is too late. */}
+          <PaymentMethodPicker value={payMethod} onChange={setPayMethod} disabled={busy} />
+
           <EntryVerdict
             membershipActive={v.membershipActive}
             equipmentActive={v.equipmentActive}

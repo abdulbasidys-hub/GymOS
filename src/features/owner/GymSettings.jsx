@@ -12,6 +12,7 @@ import {
   retireCustomField,
   reactivateCustomField,
   deleteCustomField,
+ setImportEnabled,
 } from "../../data";
 import Modal from "../../components/Modal";
 import StatusBadge from "../../components/StatusBadge";
@@ -48,6 +49,29 @@ export default function GymSettings() {
   const [customFieldsLoading, setCustomFieldsLoading] = useState(true);
   const [customFieldsError, setCustomFieldsError] = useState("");
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  // Mirrors gym.import_enabled so the switch responds instantly; the live
+  // gym watcher corrects it if the write fails.
+  const [importOn, setImportOn] = useState(!!gym?.import_enabled);
+  const [importBusy, setImportBusy] = useState(false);
+  const [importError, setImportError] = useState("");
+
+  useEffect(() => {
+    setImportOn(!!gym?.import_enabled);
+  }, [gym?.import_enabled]);
+
+  async function toggleImport(next) {
+    setImportOn(next);
+    setImportBusy(true);
+    setImportError("");
+    try {
+      await setImportEnabled(gymId, next);
+    } catch {
+      setImportOn(!next);
+      setImportError("Couldn't change that. Try again.");
+    } finally {
+      setImportBusy(false);
+    }
+  }
 
   useEffect(() => {
     let alive = true;
@@ -159,6 +183,38 @@ export default function GymSettings() {
         onChange={upsertCustomField}
         onDelete={removeCustomField}
       />
+
+      <div className="card">
+        <div className="status-block__head">
+          <h2>Adding members you already had</h2>
+          <button
+            className={`btn btn--inline ${importOn ? "" : "btn--primary"}`}
+            onClick={() => toggleImport(!importOn)}
+            disabled={importBusy}
+          >
+            {importBusy ? "Saving…" : importOn ? "Turn off" : "Turn on"}
+          </button>
+        </div>
+        <p className="muted hint">
+          Opens an <strong>Add existing</strong> page at the front desk for entering members who
+          joined <strong>before</strong> you started on GymOS. Nothing added there counts as money
+          taken, so your revenue stays honest.
+        </p>
+        <p className="muted hint">
+          {importOn ? (
+            <>
+              <strong>On.</strong> The desk can see it now. Turn it off once your old records are in
+              &mdash; it registers members without taking payment, so it should not be left open.
+            </>
+          ) : (
+            <>
+              <strong>Off.</strong> The desk cannot see or reach it. Anyone paying you now should be
+              registered the normal way.
+            </>
+          )}
+        </p>
+        {importError && <p className="form-error">{importError}</p>}
+      </div>
 
       <div className="card">
         <h2>Appearance</h2>

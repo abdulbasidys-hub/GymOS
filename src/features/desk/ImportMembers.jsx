@@ -29,10 +29,17 @@ import { formatDate } from "../../lib/helpers";
 // predates us. `imported: true` marks it as such rather than leaving a future
 // reader to guess why the payment is missing.
 //
-// Owner-only, on purpose. This is setup-day work, done once, with the owner
-// sitting there reading off their own book; it is not a thing a receptionist
-// should be able to reach mid-shift, because "register a member without
-// taking their money" is exactly the shape of a way to let a friend in free.
+// On the DESK, but only while the owner allows it (gyms.import_enabled).
+//
+// It started on the owner's own nav, which was the wrong split: the person
+// with 300 names to type in is whoever is sitting at the desk, not the owner.
+// But "register a member without taking their money" is exactly the shape of
+// a way to let a friend in free, so it cannot simply live there permanently
+// either. The owner opens it for the days the book is being moved across and
+// closes it again afterwards, from Settings.
+//
+// The guard is in DeskHome's routing as well as its nav: hiding a link is
+// not access control, and somebody who has seen the URL once can type it.
 export default function ImportMembers() {
   const { gymId, gym, account } = useAuth();
   const [plans, setPlans] = useState([]);

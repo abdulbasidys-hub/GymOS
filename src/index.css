@@ -3256,3 +3256,41 @@ select option { background: var(--surface); color: var(--text); }
 /* The toggle positions its BUTTON; the icon inside must not also try to
    position itself, or it lands outside the button it belongs to. */
 .password-input__toggle svg { position: static; transform: none; }
+
+/* ---- payment method (components/PaymentMethodPicker.jsx) ----
+   A segmented pair rather than a dropdown: two options that are picked on
+   every single payment should both be visible and one tap away, and a
+   <select> is two taps and hides the alternative. */
+.pay-method { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.pay-method__label { font-size: 13px; color: var(--text-secondary); }
+.pay-method__options { display: flex; gap: 8px; }
+.pay-method__option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 92px;
+  padding: 9px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  font-size: 14px;
+  user-select: none;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+/* The radio itself is kept in the DOM for keyboard and screen-reader
+   support, just not drawn — display:none would remove it from the
+   accessibility tree along with the focus ring. */
+.pay-method__option input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+}
+.pay-method__option--on {
+  background: rgba(var(--accent-rgb), 0.1);
+  border-color: rgba(var(--accent-rgb), 0.5);
+  color: var(--accent);
+  font-weight: 600;
+}
+.pay-method__option:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }

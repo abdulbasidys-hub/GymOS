@@ -138,6 +138,23 @@ export function reportGymClient(gymId, platform) {
   });
 }
 
+/**
+ * Turn the desk's "Add existing members" page on or off.
+ *
+ * Off by default and expected to be turned off again: it is a page that
+ * registers members WITHOUT taking money, which is exactly the shape of a
+ * way to let somebody in free. It exists for the days when a gym is moving
+ * its paper book across, and an owner who has finished should close it.
+ *
+ * The owner holds the switch, the desk does the typing — which is the split
+ * that was wrong before: this lived on the owner's own nav, where the person
+ * with 300 names to enter could not reach it.
+ */
+export function setImportEnabled(gymId, enabled) {
+  if (window.gymOS?.isElectron) return localInvoke("setGymImportEnabled", { gymId, enabled: !!enabled });
+  return updateDoc(doc(db, "gyms", gymId), { import_enabled: !!enabled });
+}
+
 /** Suspend a gym — blocks all operational reads/writes (see firestore.rules). */
 export function suspendGym(gymId) {
   return updateDoc(doc(db, "gyms", gymId), { status: "suspended" });

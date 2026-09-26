@@ -26,6 +26,7 @@ export {
   watchGym,
   updateGymName,
   reportGymClient,
+  setImportEnabled,
   suspendGym,
   reactivateGym,
   listGymsByAffiliate,

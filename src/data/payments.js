@@ -26,6 +26,11 @@ export function createPayment({
   forType,
   durationCount,
   durationUnit,
+  // "cash" | "transfer". Defaulted rather than required so the desk's
+  // existing calls keep working and older payments, which predate the field,
+  // read back as cash — which is what they were: a gym taking money at a
+  // counter before this existed was taking it in cash.
+  method = "cash",
 }) {
   return appendRecord("payments", {
     gym_id: gymId,
@@ -38,6 +43,7 @@ export function createPayment({
     for: forType,
     duration_count: durationCount,
     duration_unit: durationUnit,
+    method: method === "transfer" ? "transfer" : "cash",
     paid_at: new Date(),
   });
 }

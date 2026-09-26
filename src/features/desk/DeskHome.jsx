@@ -1,12 +1,13 @@
-import { Routes, Route, NavLink, Link, useLocation } from "react-router-dom";
+import { Routes, Route, NavLink, Link, useLocation, Navigate} from "react-router-dom";
 import { useAuth } from "../../auth";
 import Logo from "../../components/Logo";
 import LockedScreen from "../../components/LockedScreen";
 import ThemeToggle from "../../components/ThemeToggle";
-import { IconCheckCircle, IconPeople, IconChart, IconPlus, IconDownload, IconLogout, IconSync, IconGear } from "../../components/NavIcons";
+import { IconCheckCircle, IconPeople, IconChart, IconPlus, IconDownload, IconImport, IconLogout, IconSync, IconGear } from "../../components/NavIcons";
 import CheckIn from "./CheckIn";
 import DeskMembers from "./DeskMembers";
 import DeskFinances from "./DeskFinances";
+import ImportMembers from "./ImportMembers";
 import RegisterMember from "./RegisterMember";
 import MemberProfile from "../MemberProfile";
 import DownloadsPage from "../DownloadsPage";
@@ -40,6 +41,15 @@ function syncLabel({ syncStatus, lastSyncedAt, pendingCount }) {
 
 export default function DeskHome() {
   const { account, gym, signOut, isLocked, syncStatus, lastSyncedAt, pendingCount, syncNow } = useAuth();
+
+  // NAV is a module constant, so the conditional entry is appended per
+  // render. It appears only while the owner has the switch on, and the route
+  // below is guarded separately — hiding a link is not access control, and
+  // anybody who has seen the URL once can type it again.
+  const importOn = gym?.import_enabled === true;
+  const nav = importOn
+    ? [...NAV, { to: "/desk/import", label: "Add existing", Icon: IconImport }]
+    : NAV;
   const { pathname } = useLocation();
 
   // A locked/suspended gym serves no operational data (BUILD.md §11) — the
@@ -96,7 +106,7 @@ export default function DeskHome() {
         )}
 
         <nav className="sidebar__nav">
-          {NAV.map((n) => (
+          {nav.map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
@@ -157,6 +167,10 @@ export default function DeskHome() {
             <Route index element={<CheckIn />} />
             <Route path="members" element={<DeskMembers />} />
             <Route path="finances" element={<DeskFinances />} />
+            <Route
+              path="import"
+              element={importOn ? <ImportMembers /> : <Navigate to="/desk" replace />}
+            />
             <Route path="downloads" element={<DownloadsPage />} />
             <Route path="settings" element={<DeskSettings />} />
             <Route path="register" element={<RegisterMember />} />

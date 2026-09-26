@@ -139,6 +139,7 @@ export default function Finances() {
                 <th>Name</th>
                 <th>For</th>
                 <th>Amount</th>
+                <th>Paid by</th>
                 <th>Time</th>
               </tr>
             </thead>
@@ -154,6 +155,9 @@ export default function Finances() {
                       member?.name || "—",
                       p.plan_name,
                       formatMoney(p.amount, gym?.currency_code, gym?.country_code),
+                      // Payments taken before this field existed read back as
+                      // cash, which is what they were.
+                      p.method === "transfer" ? "Transfer" : "Cash",
                       formatDateTime(p.paid_at),
                     ]}
                     onExpand={() => loadReceptionist(p.receptionist_uid)}

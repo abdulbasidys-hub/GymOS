@@ -13,6 +13,7 @@ import {
 } from "../../data";
 import { computeExpiry } from "../../logic/expiry";
 import PlanPicker from "../../components/PlanPicker";
+import PaymentMethodPicker from "../../components/PaymentMethodPicker";
 
 const EMPTY_FORM = {
   name: "",
@@ -37,6 +38,7 @@ export default function RegisterMember() {
   const [confirmedAnyway, setConfirmedAnyway] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [payMethod, setPayMethod] = useState("cash");
 
   // Some gyms collect a passport photo at the desk, some don't, and some
   // just haven't taken it yet — never required to register (BUILD.md §8).
@@ -157,6 +159,7 @@ export default function RegisterMember() {
       const membershipPlan = membershipPlans.find((p) => p.id === membershipPlanId);
       const mStart = new Date();
       const mPayment = await createPayment({
+        method: payMethod,
         gymId,
         memberId: member.id,
         planId: membershipPlan.id,
@@ -181,6 +184,7 @@ export default function RegisterMember() {
         // their first attendance (MemberProfile.jsx activates it then, using
         // the duration frozen onto this payment).
         await createPayment({
+          method: payMethod,
           gymId,
           memberId: member.id,
           planId: equipmentPlan.id,
@@ -374,6 +378,14 @@ export default function RegisterMember() {
         </div>
 
         <div className="form-layout__side">
+          {/* Once, at the top of the money column: registration can take a
+              membership AND an equipment payment together, and they arrive
+              the same way. Asking twice would be asking the same question
+              twice. */}
+          <div className="card">
+            <PaymentMethodPicker value={payMethod} onChange={setPayMethod} disabled={busy} />
+          </div>
+
           <div className="card">
             <h2>Membership</h2>
             <p className="muted hint">Required to register.</p>

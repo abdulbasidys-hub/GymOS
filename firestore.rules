@@ -142,11 +142,18 @@ service cloud.firestore {
         (isAffiliate() && resource.data.affiliate_id == request.auth.uid);
       allow create: if isSuperAdmin();
       allow update: if isSuperAdmin() ||
-        // Owner included: minting a member number is part of creating a
-        // member, which an owner can now do at onboarding.
+        // Minting a member number is part of creating a member, which both
+        // roles do.
         ((isReceptionist() || isOwner()) && inMyGym(gymId) && gymIsOperational(gymId) &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['member_seq']) &&
          request.resource.data.get('member_seq', 0) > resource.data.get('member_seq', 0)) ||
+        // The owner's switch for the desk's "Add existing" page. Owner only,
+        // and nothing else in the document may move with it — a receptionist
+        // must not be able to grant themselves the page that registers
+        // members without taking money.
+        (isOwner() && inMyGym(gymId) &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['import_enabled']) &&
+         request.resource.data.import_enabled is bool) ||
         // Platform heartbeat (data/gyms.js's reportGymClient) — which of the
         // three clients this gym is actually using, for Sync Monitor.
         //

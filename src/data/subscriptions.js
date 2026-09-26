@@ -74,9 +74,13 @@ export async function setOwnerSubscription(ownerUid, gymIds, { expiryDate, grace
  * and the super admin converts it to a paid plan from the normal
  * subscription screen, which clears the trial flag.
  */
-export async function startFreeTrial(ownerUid, gymIds, months) {
-  const expiryDate = new Date();
-  expiryDate.setMonth(expiryDate.getMonth() + Number(months));
+export async function startFreeTrial(ownerUid, gymIds, months, endsOn = null) {
+  // `endsOn` wins when given: a gym signed up on the 20th usually wants to
+  // land on a billing date the rest of their month already runs to, and
+  // "N whole months from today" can never express that. Months stay the
+  // quick path, since most trials are just "give them three months".
+  const expiryDate = endsOn ? new Date(endsOn) : new Date();
+  if (!endsOn) expiryDate.setMonth(expiryDate.getMonth() + Number(months));
   expiryDate.setHours(23, 59, 59, 999);
 
   await fanOut(ownerUid, gymIds, {
@@ -87,7 +91,9 @@ export async function startFreeTrial(ownerUid, gymIds, months) {
     locked: false,
     trial: true,
     plan_id: null,
-    plan_name: `Free trial — ${months} month${Number(months) === 1 ? "" : "s"}`,
+    plan_name: endsOn
+      ? "Free trial"
+      : `Free trial — ${months} month${Number(months) === 1 ? "" : "s"}`,
   }).commit();
 
   return expiryDate;

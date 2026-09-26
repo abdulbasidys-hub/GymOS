@@ -26,6 +26,7 @@ const TRIAL_MONTHS = [
   { value: 2, label: "2 months free" },
   { value: 3, label: "3 months free" },
   { value: 6, label: "6 months free" },
+  { value: "custom", label: "Free until a date I choose…" },
 ];
 
 // Rendered inside a Modal (GymsList.jsx) — no card wrapper or heading of its
@@ -52,6 +53,9 @@ export default function NewGym() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [trialMonths, setTrialMonths] = useState(1);
+  // The date typed into the form. Distinct from trialEndsOn below, which is
+  // what the server actually set once the trial exists.
+  const [trialEndDate, setTrialEndDate] = useState("");
   const [trialEndsOn, setTrialEndsOn] = useState(null); // set once the trial is actually started
   const [createdOwner, setCreatedOwner] = useState(null); // { username, tempPassword } — shown once, "new" mode only
   const [branchAdded, setBranchAdded] = useState(null); // ownerName — shown once, "existing" mode only
@@ -65,6 +69,7 @@ export default function NewGym() {
   function switchMode(next) {
     setMode(next);
     setError("");
+
   }
 
   async function submit(e) {
@@ -80,6 +85,12 @@ export default function NewGym() {
     if (!/^[A-Z0-9]{2,6}$/.test(cleanPrefix))
       return setError("Prefix must be 2–6 letters or numbers.");
     if (!cleanAddress) return setError("Enter the gym's address.");
+    if (trialMonths === "custom") {
+      if (!trialEndDate) return setError("Pick the date the free trial should end.");
+      if (new Date(trialEndDate).getTime() <= Date.now()) {
+        return setError("The trial end date has to be in the future.");
+      }
+    }
     if (!country) return setError("Pick the gym's country from the list.");
     if (mode === "new") {
       if (!cleanOwnerName) return setError("Enter the owner's name.");
@@ -121,13 +132,21 @@ export default function NewGym() {
         // The trial belongs to the OWNER, not the gym -- subscriptions are
         // pooled per owner and mirrored onto each of their gyms, so this is
         // the same path a paid plan takes.
-        if (Number(trialMonths) > 0) {
-          const endsOn = await startFreeTrial(owner.id, [gym.id], Number(trialMonths));
+        if (trialMonths === "custom" || Number(trialMonths) > 0) {
+          const endsOn = await startFreeTrial(
+            owner.id,
+            [gym.id],
+            trialMonths === "custom" ? 0 : Number(trialMonths),
+            trialMonths === "custom" ? trialEndDate : null
+          );
           setTrialEndsOn(endsOn);
           await logAdminActivity({
             gymId: gym.id,
             gymName: gym.name,
-            activity: `Free trial started — ${trialMonths} month${Number(trialMonths) === 1 ? "" : "s"}`,
+            activity:
+              trialMonths === "custom"
+                ? `Free trial started — until ${trialEndDate}`
+                : `Free trial started — ${trialMonths} month${Number(trialMonths) === 1 ? "" : "s"}`,
             status: "active",
             performedBy: account?.name,
           });
@@ -299,7 +318,12 @@ export default function NewGym() {
 
             <label className="field">
               <span>Free trial</span>
-              <select value={trialMonths} onChange={(e) => setTrialMonths(Number(e.target.value))}>
+              <select
+                value={trialMonths}
+                onChange={(e) =>
+                  setTrialMonths(e.target.value === "custom" ? "custom" : Number(e.target.value))
+                }
+              >
                 {TRIAL_MONTHS.map((t) => (
                   <option key={t.value} value={t.value}>
                     {t.label}
@@ -307,8 +331,32 @@ export default function NewGym() {
                 ))}
               </select>
             </label>
+
+            {trialMonths === "custom" && (
+              <label className="field">
+                <span>Free until</span>
+                <input
+                  type="date"
+                  value={trialEndDate}
+                  onChange={(e) => setTrialEndDate(e.target.value)}
+                  required
+                />
+                <span className="muted hint">
+                  The gym works free until the end of this day, then locks. Pick the date their
+                  billing should fall on each month.
+                </span>
+              </label>
+            )}
+
             <p className="muted hint">
-              {Number(trialMonths) > 0 ? (
+              {trialMonths === "custom" ? (
+                <>
+                  Full access, free, until the date you pick. When it runs out the gym locks until a
+                  paid plan is added &mdash; nothing they recorded is lost, and it all comes back the
+                  moment you add one. No platform revenue and no affiliate commission is recorded for
+                  a trial.
+                </>
+              ) : Number(trialMonths) > 0 ? (
                 <>
                   Full access, free, for {trialMonths} month{Number(trialMonths) === 1 ? "" : "s"} from
                   today. When it runs out the gym locks until a paid plan is added — nothing they
