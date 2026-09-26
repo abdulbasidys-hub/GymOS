@@ -41,12 +41,28 @@ export default function Modal({ open, onClose, title, children }) {
 
   if (state === "closed") return null;
 
-  function handleCardAnimationEnd() {
+  // The guard matters. Animation events BUBBLE, so this fires for any
+  // animation that finishes anywhere inside the modal — a .card's entry
+  // animation, a spinner, anything a child re-render restarts. While the
+  // modal is closing, the first child animation to finish would tear it down
+  // mid-flight, which looks like the popup glitching rather than closing.
+  // And because a re-render can restart a child animation at any moment, the
+  // same event arrives at unpredictable times while the modal is simply
+  // open. Only the card's OWN animation may end the close.
+  function handleCardAnimationEnd(e) {
+    if (e.target !== e.currentTarget) return;
     setState((s) => (s === "closing" ? "closed" : s));
   }
 
   return createPortal(
-    <div className="modal-backdrop" data-state={state} onClick={onClose}>
+    <div
+      className="modal-backdrop"
+      data-state={state}
+      // Ignored once closing: onClose usually resets the parent's form state,
+      // and running that a second time while the card is animating out is
+      // another way this looks like it is misbehaving.
+      onClick={() => state === "open" && onClose()}
+    >
       <div
         className="modal-card"
         data-state={state}
@@ -56,7 +72,12 @@ export default function Modal({ open, onClose, title, children }) {
         <div className="modal-card__scroll">
           <div className="modal-card__head">
             <h2>{title}</h2>
-            <button className="modal-card__close" onClick={onClose} aria-label="Close">
+            <button
+              className="modal-card__close"
+              type="button"
+              onClick={() => state === "open" && onClose()}
+              aria-label="Close"
+            >
               ×
             </button>
           </div>
