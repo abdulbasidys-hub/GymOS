@@ -1286,13 +1286,23 @@ select option { background: var(--surface); color: var(--text); }
    non-icon .field input already does (and like the Sign in button below
    it). */
 .field__control { position: relative; display: flex; align-items: center; }
-.field__control svg {
+/* DIRECT child only. As a descendant selector this also caught the eye icon
+   inside a PasswordInput and pinned it at left:14px on top of the lock, so
+   the login field lost its lock and gained a stray absolutely-positioned
+   glyph. The leading icons here are always direct children. */
+.field__control > svg {
   position: absolute;
   left: 14px;
   top: 50%;
   transform: translateY(-50%);
   color: var(--muted);
   pointer-events: none;
+  /* Above the input, not behind it. A plain <input> is unpositioned so the
+     absolutely-positioned icon painted over it for free; PasswordInput wraps
+     its input in a position:relative span, which is a positioned element
+     LATER in the DOM and so painted on top — the lock simply vanished behind
+     an opaque box. */
+  z-index: 1;
 }
 .field__control input { padding: 11px 44px; flex: 1; width: 100%; min-width: 0; }
 
@@ -3201,3 +3211,48 @@ select option { background: var(--surface); color: var(--text); }
   .site-pricing-card:hover { transform: none; }
   .btn:active { transform: none; }
 }
+
+/* The count + unit pair on the plans table's edit row. Narrow number box so
+   the two sit side by side inside a table cell without wrapping. */
+.duration-edit { display: flex; gap: 6px; align-items: center; }
+.duration-edit input { width: 62px; }
+
+/* ---- password reveal (components/PasswordInput.jsx) ----
+   The button sits INSIDE the field's box rather than beside it, so the row
+   keeps the same height and alignment as every other .field in a form and
+   nothing shifts when a password input replaces a text one. */
+.password-input { position: relative; display: block; }
+.password-input input { width: 100%; padding-right: 40px; }
+.password-input__toggle {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  border-radius: var(--radius);
+}
+.password-input__toggle svg { width: 18px; height: 18px; }
+.password-input__toggle:hover { color: var(--text); }
+
+/* The login field puts a lock icon and the input in a flex ROW. The reveal
+   toggle wraps its input in a span, so the span is now the flex child that
+   has to stretch — without this it collapses to the input's intrinsic width
+   and the password box ends up half the width of the username box above it.
+   min-width:0 stops a long value from pushing the icon out of the row. */
+.field__control .password-input { flex: 1; min-width: 0; }
+/* Inside a field__control the input needs the leading icon's gutter as well
+   as the toggle's, so it keeps the 44px on both sides that a plain
+   .field__control input has. */
+.field__control .password-input input { padding: 11px 44px; }
+/* The toggle positions its BUTTON; the icon inside must not also try to
+   position itself, or it lands outside the button it belongs to. */
+.password-input__toggle svg { position: static; transform: none; }

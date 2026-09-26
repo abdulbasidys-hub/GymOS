@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Modal from "./Modal";
+import PasswordInput from "./PasswordInput";
 
 // Asks for the password before a manual sync (Electron only).
 //
@@ -35,8 +36,7 @@ export default function SyncPasswordModal({ open, busy, error, onSubmit, onClose
       <form onSubmit={submit} className="sync-password">
         <label className="field">
           <span>Password</span>
-          <input
-            type="password"
+          <PasswordInput
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"

@@ -21,6 +21,14 @@ import { licenseStatus } from "../../logic/license";
 import { formatMoney, formatDate, capitalize } from "../../lib/helpers";
 
 const DURATION_UNITS = ["day", "week", "month", "year"];
+
+/** "3 weeks", "1 month" — read back under the inputs so the owner can see
+ *  what they have actually built before they save it. */
+function durationLabel(count, unit) {
+  const n = Number(count);
+  if (!Number.isFinite(n) || n < 1) return "—";
+  return `Runs for ${n} ${unit}${n > 1 ? "s" : ""}.`;
+}
 const FIELD_TYPES = [
   { value: "text", label: "Text" },
   { value: "number", label: "Number" },
@@ -250,6 +258,7 @@ function CreatePlanModal({ open, onClose, type, gymId, onCreated }) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [durationUnit, setDurationUnit] = useState("month");
+  const [durationCount, setDurationCount] = useState("1");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -259,6 +268,7 @@ function CreatePlanModal({ open, onClose, type, gymId, onCreated }) {
       setName("");
       setPrice("");
       setDurationUnit("month");
+      setDurationCount("1");
       setError("");
     }, 0);
   }
@@ -268,6 +278,10 @@ function CreatePlanModal({ open, onClose, type, gymId, onCreated }) {
     setError("");
     if (!name.trim()) return setError("Enter a plan name.");
     if (!price || Number(price) <= 0) return setError("Enter a price.");
+    const count = Number(durationCount);
+    if (type === "equipment" && (!Number.isInteger(count) || count < 1)) {
+      return setError("How many? Enter a whole number, 1 or more.");
+    }
 
     setBusy(true);
     try {
@@ -276,7 +290,11 @@ function CreatePlanModal({ open, onClose, type, gymId, onCreated }) {
         type,
         name: name.trim(),
         price: Number(price),
-        durationCount: 1,
+        // Membership tiers are fixed at 1 year (see the hint in the form);
+        // equipment is whatever the gym actually sells — 3 weeks, 2 months,
+        // 10 days. It was hardcoded to 1, so a unit selector that offered
+        // "week" could only ever mean ONE week.
+        durationCount: type === "equipment" ? count : 1,
         durationUnit,
       });
       onCreated(plan);
@@ -301,16 +319,30 @@ function CreatePlanModal({ open, onClose, type, gymId, onCreated }) {
           </label>
         </div>
         {type === "equipment" ? (
-          <label className="field">
-            <span>Duration unit</span>
-            <select value={durationUnit} onChange={(e) => setDurationUnit(e.target.value)}>
-              {DURATION_UNITS.map((u) => (
-                <option key={u} value={u}>
-                  {capitalize(u)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="row2">
+            <label className="field">
+              <span>How many</span>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={durationCount}
+                onChange={(e) => setDurationCount(e.target.value)}
+                required
+              />
+            </label>
+            <label className="field">
+              <span>Duration unit</span>
+              <select value={durationUnit} onChange={(e) => setDurationUnit(e.target.value)}>
+                {DURATION_UNITS.map((u) => (
+                  <option key={u} value={u}>
+                    {capitalize(u)}
+                  </option>
+                ))}
+              </select>
+              <span className="muted hint">{durationLabel(durationCount, durationUnit)}</span>
+            </label>
+          </div>
         ) : (
           <p className="muted hint">Membership tiers always run for 1 year.</p>
         )}
@@ -331,6 +363,7 @@ function PlanRow({ index, plan, busy, setBusy, setError, editing, onEdit, onCanc
   const [name, setName] = useState(plan.name);
   const [price, setPrice] = useState(plan.price);
   const [durationUnit, setDurationUnit] = useState(plan.duration_unit);
+  const [durationCount, setDurationCount] = useState(String(plan.duration_count ?? 1));
 
   async function save() {
     setBusy(true);
@@ -344,6 +377,7 @@ function PlanRow({ index, plan, busy, setBusy, setError, editing, onEdit, onCanc
         id: plan.id,
         name: String(name).trim(),
         price: Number(price),
+        duration_count: Math.max(1, Math.round(Number(durationCount) || 1)),
         duration_unit: durationUnit,
       });
       onCancelEdit();
@@ -363,13 +397,22 @@ function PlanRow({ index, plan, busy, setBusy, setError, editing, onEdit, onCanc
         </td>
         <td>
           {plan.type === "equipment" ? (
-            <select value={durationUnit} onChange={(e) => setDurationUnit(e.target.value)}>
-              {DURATION_UNITS.map((u) => (
-                <option key={u} value={u}>
-                  {capitalize(u)}
-                </option>
-              ))}
-            </select>
+            <div className="duration-edit">
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={durationCount}
+                onChange={(e) => setDurationCount(e.target.value)}
+              />
+              <select value={durationUnit} onChange={(e) => setDurationUnit(e.target.value)}>
+                {DURATION_UNITS.map((u) => (
+                  <option key={u} value={u}>
+                    {capitalize(u)}
+                  </option>
+                ))}
+              </select>
+            </div>
           ) : (
             "1 year"
           )}

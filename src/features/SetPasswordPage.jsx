@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "../auth";
 import { changeOwnPassword } from "../data";
 import Logo from "../components/Logo";
+import PasswordInput from "../components/PasswordInput";
 
 // Shown once, right after a new owner/receptionist first signs in on the
 // temporary password their creator generated (data/users.js). Nobody who
@@ -42,8 +43,7 @@ export default function SetPasswordPage() {
 
         <label className="field">
           <span>New password</span>
-          <input
-            type="password"
+          <PasswordInput
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="new-password"
@@ -52,8 +52,7 @@ export default function SetPasswordPage() {
         </label>
         <label className="field">
           <span>Confirm password</span>
-          <input
-            type="password"
+          <PasswordInput
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             autoComplete="new-password"

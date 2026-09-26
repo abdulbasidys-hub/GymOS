@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { changePassword } from "../data";
+import PasswordInput from "./PasswordInput";
 
 // Self-contained, works from any role's Settings surface (owner/
 // GymSettings.jsx, admin/Settings.jsx, the affiliate and desk settings
@@ -48,8 +49,7 @@ export default function ChangePasswordForm({ showTitle = true }) {
       <form onSubmit={submit}>
         <label className="field">
           <span>Current password</span>
-          <input
-            type="password"
+          <PasswordInput
             value={currentPassword}
             onChange={(e) => {
               setCurrentPassword(e.target.value);
@@ -62,8 +62,7 @@ export default function ChangePasswordForm({ showTitle = true }) {
         <div className="row2 row2--even">
           <label className="field">
             <span>New password</span>
-            <input
-              type="password"
+            <PasswordInput
               value={newPassword}
               onChange={(e) => {
                 setNewPassword(e.target.value);
@@ -75,8 +74,7 @@ export default function ChangePasswordForm({ showTitle = true }) {
           </label>
           <label className="field">
             <span>Confirm new password</span>
-            <input
-              type="password"
+            <PasswordInput
               value={confirm}
               onChange={(e) => {
                 setConfirm(e.target.value);

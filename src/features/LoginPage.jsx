@@ -5,6 +5,7 @@ import { signInWithUsername } from "../data";
 import { homePathFor } from "../lib/roles";
 import { isInstalledApp } from "../lib/standalone";
 import Logo from "../components/Logo";
+import PasswordInput from "../components/PasswordInput";
 
 function UserIcon() {
   return (
@@ -160,8 +161,7 @@ export default function LoginPage() {
           <span>Password</span>
           <div className="field__control">
             <LockIcon />
-            <input
-              type="password"
+            <PasswordInput
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
