@@ -9,7 +9,7 @@
 // CommonJS. The .cjs extension forces that regardless of the package.json
 // "type" field, so this file can use require()/__dirname normally.
 
-const { app, BrowserWindow, ipcMain, safeStorage, Menu } = require("electron");
+const { app, BrowserWindow, ipcMain, safeStorage, Menu , nativeTheme} = require("electron");
 const path = require("node:path");
 const { getConnection } = require("./local-db/connection.cjs");
 const { buildOperations } = require("./local-db/index.cjs");
@@ -115,6 +115,13 @@ function createWindow() {
     minWidth: 960,
     minHeight: 600,
     show: false,
+    // Paint the window's own background in the theme before anything else
+    // loads. Without it Electron uses white, so a desk on the dark theme got
+    // a white flash on every launch. nativeTheme is the best guess available
+    // in the main process — the app's real choice lives in the renderer's
+    // localStorage, which is exactly the same fallback index.html's own
+    // media-query default uses.
+    backgroundColor: nativeTheme.shouldUseDarkColors ? "#0b0b0c" : "#ffffff",
     // electron-builder already bakes build/icon.ico into the packaged
     // .exe (taskbar/shortcut icon) via package.json's build.win.icon —
     // this is what makes an UNPACKAGED `npm run electron:dev` window show
