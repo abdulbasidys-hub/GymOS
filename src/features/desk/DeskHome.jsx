@@ -3,7 +3,7 @@ import { useAuth } from "../../auth";
 import Logo from "../../components/Logo";
 import LockedScreen from "../../components/LockedScreen";
 import ThemeToggle from "../../components/ThemeToggle";
-import { IconCheckCircle, IconPeople, IconChart, IconPlus, IconDownload, IconImport, IconLogout, IconSync, IconGear } from "../../components/NavIcons";
+import { IconCheckCircle, IconPeople, IconChart, IconPlus, IconDownload, IconImport, IconLogout, IconSync, IconGear , IconHelp} from "../../components/NavIcons";
 import CheckIn from "./CheckIn";
 import DeskMembers from "./DeskMembers";
 import DeskFinances from "./DeskFinances";
@@ -12,6 +12,7 @@ import RegisterMember from "./RegisterMember";
 import MemberProfile from "../MemberProfile";
 import DownloadsPage from "../DownloadsPage";
 import DeskSettings from "./DeskSettings";
+import HelpPage from "../HelpPage";
 
 // `tab: true` means it gets a slot in the phone's bottom bar. Downloads is
 // the one that doesn't: it's a page you visit once, to fetch your guide, so
@@ -22,6 +23,7 @@ const NAV = [
   { to: "/desk/members", label: "Members", Icon: IconPeople, tab: true, tabOrder: 2 },
   { to: "/desk/finances", label: "Finances", Icon: IconChart, tab: true, tabOrder: 3 },
   { to: "/desk/downloads", label: "Downloads", Icon: IconDownload },
+  { to: "/desk/help", label: "Help", Icon: IconHelp },
   // A nav destination rather than a gear in the header — see
   // DeskSettings.jsx. On a phone the top bar has room for the gym's
   // name or another icon, not both, and the nav bar has the space.
@@ -171,6 +173,7 @@ export default function DeskHome() {
               path="import"
               element={importOn ? <ImportMembers /> : <Navigate to="/desk" replace />}
             />
+            <Route path="help" element={<HelpPage />} />
             <Route path="downloads" element={<DownloadsPage />} />
             <Route path="settings" element={<DeskSettings />} />
             <Route path="register" element={<RegisterMember />} />

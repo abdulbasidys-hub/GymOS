@@ -19,6 +19,8 @@ import {
   logAdminActivity,
   deleteGymAndAllData,
   resetUserPassword,
+  getUserRecord,
+  setGymAffiliateContact
 } from "../../data";
 import Modal from "../../components/Modal";
 import StatusBadge from "../../components/StatusBadge";
@@ -40,6 +42,7 @@ function PersonDetailModal({ person, onClose, onSaveContact, onToggleActive }) {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
+
   const [error, setError] = useState("");
   const [resetResult, setResetResult] = useState(null);
 
@@ -212,6 +215,26 @@ export default function GymDetailPage() {
   const { account } = useAuth();
 
   const [gym, setGym] = useState(null);
+  const [contactBusy, setContactBusy] = useState(false);
+  const [contactMsg, setContactMsg] = useState("");
+
+  // Super-admin is the only role that can read an affiliate's account, so
+  // it is the only role that can copy their number onto a gym.
+  async function refreshAffiliateContact() {
+    setContactBusy(true);
+    setContactMsg("");
+    try {
+      const marketer = await getUserRecord(gym.affiliate_id);
+      if (!marketer) throw new Error("gone");
+      await setGymAffiliateContact(gym.id, { name: marketer.name, phone: marketer.phone });
+      setGym((g) => ({ ...g, affiliate_name: marketer.name, affiliate_phone: marketer.phone }));
+      setContactMsg(marketer.phone ? "Copied." : "That marketer has no phone number on their own account.");
+    } catch {
+      setContactMsg("Couldn't read that marketer's account.");
+    } finally {
+      setContactBusy(false);
+    }
+  }
   const [owner, setOwner] = useState(null);
   const [staff, setStaff] = useState([]);
   const [members, setMembers] = useState([]);
@@ -406,7 +429,30 @@ export default function GymDetailPage() {
           {gym.country_name} · prices at this gym show in {gym.currency_code}
         </p>
       )}
-      {gym.affiliate_name && <p className="muted">Referred by {gym.affiliate_name}</p>}
+      {gym.affiliate_name && (
+        <p className="muted">
+          Referred by {gym.affiliate_name}
+          {gym.affiliate_phone ? ` · ${gym.affiliate_phone}` : ""}
+        </p>
+      )}
+      {/* The gym's own Help page shows this marketer's name and number to the
+          owner and the desk, read off the GYM document — a gym cannot read a
+          marketer's account, since a marketer belongs to no gym. That copy
+          needs filling in for gyms created before the field existed, and
+          re-copying whenever a marketer changes their phone. */}
+      {gym.affiliate_id && (
+        <div className="section-top">
+          <button className="btn btn--inline" onClick={refreshAffiliateContact} disabled={contactBusy}>
+            {contactBusy ? "Updating…" : gym.affiliate_phone ? "Re-copy marketer contact" : "Add marketer contact"}
+          </button>
+          {!gym.affiliate_phone && (
+            <p className="muted hint">
+              No phone recorded, so this gym&rsquo;s Help page has a name and nothing to ring.
+            </p>
+          )}
+          {contactMsg && <p className="muted hint">{contactMsg}</p>}
+        </div>
+      )}
 
       {error && <div className="form-error">{error}</div>}
 

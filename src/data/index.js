@@ -27,6 +27,7 @@ export {
   updateGymName,
   reportGymClient,
   setImportEnabled,
+  setGymAffiliateContact,
   suspendGym,
   reactivateGym,
   listGymsByAffiliate,

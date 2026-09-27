@@ -109,6 +109,7 @@ export default function NewGym() {
         address: cleanAddress,
         affiliateId: affiliate?.id,
         affiliateName: affiliate?.name,
+        affiliatePhone: affiliate?.phone,
         countryCode: country.code,
         countryName: country.name,
         currencyCode: country.currency,

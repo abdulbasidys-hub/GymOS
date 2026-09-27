@@ -233,6 +233,12 @@ subscription: {
   last_verified_at, locked: bool,
   plan_id?, plan_name?            // which platform_plans tier funded the current expiry, if any
 },
+affiliate_phone?,                 // the marketer's number, copied from their
+  // account at creation (and re-copyable from the gym page). Denormalised
+  // because it CANNOT be joined: firestore.rules lets a gym read users in
+  // that gym, and an affiliate belongs to none — so the one person a gym most
+  // needs to ring is the one record it cannot read. Also means the number is
+  // on the desk's local copy with no internet, which is when help is wanted.
 clients?: { desktop?: ts, pwa?: ts, web?: ts },  // last time this gym was opened on
   // each of the three clients (src/lib/platform.js). Written by the gym's own
   // owner/receptionist on sign-in (data/gyms.js's reportGymClient), read by

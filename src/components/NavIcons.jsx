@@ -141,6 +141,16 @@ export function IconImport() {
   );
 }
 
+export function IconHelp() {
+  return base(
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.6 9.2a2.5 2.5 0 015 .4c0 1.7-2.5 2-2.5 3.6" />
+      <line x1="12" y1="17" x2="12" y2="17.01" />
+    </>
+  );
+}
+
 export function IconPlus() {
   return base(
     <>

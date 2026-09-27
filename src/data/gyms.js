@@ -34,7 +34,7 @@ import { localInvoke } from "./local/bridge";
  * created before this field existed simply don't have it — formatMoney
  * treats that the same as NGN/Nigeria, matching how the app always behaved.
  */
-export async function createGym({ name, prefix, address, affiliateId, affiliateName, countryCode, countryName, currencyCode }) {
+export async function createGym({ name, prefix, address, affiliateId, affiliateName, affiliatePhone, countryCode, countryName, currencyCode }) {
   const cleanPrefix = String(prefix).trim().toUpperCase();
 
   // Uniqueness check (single-field equality — no composite index needed).
@@ -57,6 +57,13 @@ export async function createGym({ name, prefix, address, affiliateId, affiliateN
     member_seq: 0,      // running counter for member numbers, used at registration
     affiliate_id: affiliateId || undefined,
     affiliate_name: affiliateName || undefined,
+    // Copied onto the gym rather than looked up when needed, because it
+    // CANNOT be looked up: firestore.rules lets an owner read users in their
+    // own gym, and an affiliate belongs to no gym, so the one person a gym
+    // most needs to ring is the one record they cannot read. Denormalising
+    // also means the number is on the desk's local copy when the internet is
+    // down — which is exactly when somebody needs help.
+    affiliate_phone: affiliatePhone || undefined,
     country_code: countryCode || undefined,
     country_name: countryName || undefined,
     currency_code: currencyCode || undefined,
@@ -98,6 +105,22 @@ export function watchGym(gymId, callback) {
   return onSnapshot(doc(db, "gyms", gymId), (snap) => {
     callback(snap.exists() ? { id: snap.id, ...snap.data() } : null);
   });
+}
+
+/**
+ * Re-copy the marketer's name and number onto the gym from their account.
+ *
+ * Two jobs: filling it in for gyms created before the field existed, and
+ * catching up when a marketer changes their phone — a denormalised copy goes
+ * stale by definition, and this is the thing that un-stales it. Super-admin
+ * only, because they are the only role that can read an affiliate's record
+ * to copy it from.
+ */
+export function setGymAffiliateContact(gymId, { name, phone }) {
+  return updateDoc(doc(db, "gyms", gymId), stripUndefined({
+    affiliate_name: name || undefined,
+    affiliate_phone: phone || undefined,
+  }));
 }
 
 /** Rename a gym. The prefix is never editable — it's permanent (member numbers depend on it). */

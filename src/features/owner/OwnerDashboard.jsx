@@ -4,7 +4,7 @@ import Logo from "../../components/Logo";
 import LockedScreen from "../../components/LockedScreen";
 import ThemeToggle from "../../components/ThemeToggle";
 import NavMore from "../../components/NavMore";
-import { IconDashboard, IconPeople, IconClipboard, IconChart, IconBadge, IconGear, IconDownload, IconLogout, IconSync, IconBuilding } from "../../components/NavIcons";
+import { IconDashboard, IconPeople, IconClipboard, IconChart, IconBadge, IconGear, IconDownload, IconLogout, IconSync, IconBuilding , IconHelp} from "../../components/NavIcons";
 import OwnerHome from "./OwnerHome";
 import Attendance from "./Attendance";
 import Finances from "./Finances";
@@ -16,6 +16,7 @@ import MembersList from "./MembersList";
 import CrossBranchReport from "./CrossBranchReport";
 import MemberProfile from "../MemberProfile";
 import DownloadsPage from "../DownloadsPage";
+import HelpPage from "../HelpPage";
 
 // Every nav entry is a direct link to one page — no dropdowns. ExpiringSoon
 // is still routed (reached by clicking through OwnerHome's dashboard cards,
@@ -42,6 +43,7 @@ const NAV = [
   { to: "/owner/finances", label: "Finances", Icon: IconChart, tab: true, tabOrder: 3 },
   { to: "/owner/staff", label: "Team", Icon: IconBadge },
   { to: "/owner/downloads", label: "Downloads", Icon: IconDownload },
+  { to: "/owner/help", label: "Help", Icon: IconHelp },
   { to: "/owner/settings", label: "Settings", Icon: IconGear, tab: true, tabOrder: 4 },
 ];
 const BRANCHES_NAV = { to: "/owner/branches", label: "All branches", Icon: IconBuilding };
@@ -176,6 +178,7 @@ export default function OwnerDashboard() {
             <Route path="staff" element={<ManageStaff />} />
             <Route path="staff/:staffId" element={<StaffProfile />} />
             <Route path="branches" element={<CrossBranchReport />} />
+            <Route path="help" element={<HelpPage />} />
             <Route path="downloads" element={<DownloadsPage />} />
             <Route path="settings" element={<GymSettings />} />
             <Route path="member/:memberId" element={<MemberProfile />} />

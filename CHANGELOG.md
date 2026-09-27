@@ -165,6 +165,21 @@ Rates apply to payments recorded from then on. Commission already recorded
 keeps the rate it was recorded at — changing a rate never rewrites money
 somebody has already earned.
 
+### A Help page, with the number of whoever set you up
+
+Both the owner and the front desk now have a **Help** page in their menu. It
+shows the name and phone number of the person who set your gym up on GymOS,
+so nobody has to go hunting through old messages for it — and a receptionist
+hired months later has it without having to ask.
+
+It also says plainly what that person can and cannot do. They can walk you
+through any screen and sort out billing; they cannot see your members, your
+money or your attendance, and nobody can read anybody's password. Knowing
+that in advance saves a phone call asking for something that isn't possible.
+
+The number is stored on the gym itself, which means the desk still has it
+when the internet is down — exactly when somebody wants help.
+
 ### Expired equipment now actually stops somebody being checked in
 
 **This was a bug, and it let people train without paying.** The banner said
