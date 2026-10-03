@@ -61,6 +61,7 @@ export {
   markAffiliateEarningsPaid,
 } from "./affiliateEarnings";
 export { getPlatformSettings, setAffiliateCommissionPercent } from "./platformSettings";
+export { getPlatformBilling, setPlatformBilling } from "./platformBilling";
 export {
   createPlan,
   listPlans,

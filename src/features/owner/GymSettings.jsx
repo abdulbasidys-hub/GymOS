@@ -13,11 +13,13 @@ import {
   reactivateCustomField,
   deleteCustomField,
  setImportEnabled,
-} from "../../data";
+
+  getPlatformBilling,} from "../../data";
 import Modal from "../../components/Modal";
 import StatusBadge from "../../components/StatusBadge";
 import ThemePreference from "../../components/ThemePreference";
 import ChangePasswordForm from "../../components/ChangePasswordForm";
+import CopyableText from "../../components/CopyableText";
 import { licenseStatus } from "../../logic/license";
 import { formatMoney, formatDate, capitalize } from "../../lib/helpers";
 
@@ -51,9 +53,33 @@ export default function GymSettings() {
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   // Mirrors gym.import_enabled so the switch responds instantly; the live
   // gym watcher corrects it if the write fails.
+  const [billing, setBilling] = useState(null);
   const [importOn, setImportOn] = useState(!!gym?.import_enabled);
   const [importBusy, setImportBusy] = useState(false);
   const [importError, setImportError] = useState("");
+
+  // Silent on failure: the card simply says nothing is set up. Where to send
+
+  // money is useful, never urgent, and must not be able to break Settings.
+
+  useEffect(() => {
+
+    let alive = true;
+
+    getPlatformBilling()
+
+      .then((b) => alive && setBilling(b))
+
+      .catch(() => alive && setBilling({}));
+
+    return () => {
+
+      alive = false;
+
+    };
+
+  }, []);
+
 
   useEffect(() => {
     setImportOn(!!gym?.import_enabled);
@@ -183,6 +209,48 @@ export default function GymSettings() {
         onChange={upsertCustomField}
         onDelete={removeCustomField}
       />
+
+      <div className="card">
+        <h2>Paying for GymOS</h2>
+        <p className="muted hint">
+          Where to send your subscription payment. Tap a value to copy it rather than retyping
+          it &mdash; a mistyped account number does not bounce, it pays a stranger.
+        </p>
+        {billing === null ? (
+          <p className="empty">Loading&hellip;</p>
+        ) : billing.account_number || billing.bank_name ? (
+          <>
+            <div className="detail-grid section-top">
+              <div>
+                <h4>Bank</h4>
+                <p>{billing.bank_name || <span className="muted">Not set</span>}</p>
+              </div>
+              <div>
+                <h4>Account name</h4>
+                <p>{billing.account_name || <span className="muted">Not set</span>}</p>
+              </div>
+              <div>
+                <h4>Account number</h4>
+                <p><CopyableText value={billing.account_number} /></p>
+              </div>
+            </div>
+            {billing.notes && <p className="muted hint">{billing.notes}</p>}
+            <div className="note">
+              <span className="callout-label">After you pay</span>
+              <p>
+                Send your proof of payment to your GymOS contact &mdash; their name and number are on
+                the <strong>Help</strong> page. Paying does not extend your subscription by itself;
+                they do that once they have seen it.
+              </p>
+            </div>
+          </>
+        ) : (
+          <p className="muted section-top">
+            No payment details have been published yet. Ask your GymOS contact &mdash; their number is
+            on the <strong>Help</strong> page.
+          </p>
+        )}
+      </div>
 
       <div className="card">
         <div className="status-block__head">

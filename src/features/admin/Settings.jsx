@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState , useCallback} from "react";
 import {
   listPlatformPlans,
   createPlatformPlan,
@@ -7,7 +7,9 @@ import {
   reactivatePlatformPlan,
   getPlatformSettings,
   setAffiliateCommissionPercent,
-} from "../../data";
+
+  getPlatformBilling,
+  setPlatformBilling,} from "../../data";
 import Modal from "../../components/Modal";
 import StatusBadge from "../../components/StatusBadge";
 import ChangePasswordForm from "../../components/ChangePasswordForm";
@@ -59,6 +61,8 @@ export default function Settings() {
     <>
       <PlanManager plans={plans} onCreated={addPlan} onChanged={patchPlan} />
       <CommissionSettings percent={commissionPercent} onChanged={setCommissionPercent} />
+
+      <BillingSettings />
 
       {/* The light/dark choice lives on every role's Settings page — on a
           phone the header has no room for the toggle (index.css). */}
@@ -387,6 +391,136 @@ function PlanModal({ open, onClose, onSave, busy, plan }) {
 // onto that earning, so a later change here never rewrites money already
 // earned — nor does it retroactively move anyone already on their own rate.
 // Marketer roster + payouts live under their own "Marketers" nav section.
+// The bank account gyms pay INTO for GymOS itself, shown to every owner on
+// their own Settings page.
+//
+// Deliberately a different collection from the commission rate above, not
+// two more fields on the same document: platform_settings is super-admin-read
+// only BECAUSE it holds that rate, so publishing the bank details from there
+// would have meant opening the commission rate to every gym in order to tell
+// them where to send money. See data/platformBilling.js.
+function BillingSettings() {
+  const [billing, setBilling] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ bankName: "", accountName: "", accountNumber: "", notes: "" });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const load = useCallback(() => {
+    getPlatformBilling()
+      .then((b) => setBilling(b || {}))
+      .catch(() => setBilling({}));
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  function startEditing() {
+    setForm({
+      bankName: billing?.bank_name || "",
+      accountName: billing?.account_name || "",
+      accountNumber: billing?.account_number || "",
+      notes: billing?.notes || "",
+    });
+    setError("");
+    setOpen(true);
+  }
+
+  async function save(e) {
+    e.preventDefault();
+    setError("");
+    setBusy(true);
+    try {
+      await setPlatformBilling(form);
+      load();
+      setOpen(false);
+    } catch {
+      setError("Couldn't save the payment details.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const configured = billing?.bank_name || billing?.account_number;
+
+  return (
+    <div className="card">
+      <div className="status-block__head">
+        <h2>Payment details gyms see</h2>
+        <button className={`btn btn--inline ${configured ? "" : "btn--primary"}`} onClick={startEditing}>
+          {configured ? "Edit" : "Add"}
+        </button>
+      </div>
+      <p className="muted hint">
+        The account a gym pays into for GymOS. Shown to every owner on their own Settings page, so
+        they are not asking for it each time &mdash; and to marketers, who get asked.
+      </p>
+
+      {billing === null ? (
+        <p className="empty">Loading&hellip;</p>
+      ) : configured ? (
+        <div className="detail-grid section-top">
+          <div>
+            <h4>Bank</h4>
+            <p>{billing.bank_name || <span className="muted">Not set</span>}</p>
+          </div>
+          <div>
+            <h4>Account name</h4>
+            <p>{billing.account_name || <span className="muted">Not set</span>}</p>
+          </div>
+          <div>
+            <h4>Account number</h4>
+            <p>{billing.account_number || <span className="muted">Not set</span>}</p>
+          </div>
+        </div>
+      ) : (
+        <p className="muted section-top">
+          Not published yet &mdash; owners see &ldquo;no payment details&rdquo; on their Settings page.
+        </p>
+      )}
+      {billing?.notes && <p className="muted hint section-top">{billing.notes}</p>}
+
+      <Modal open={open} onClose={() => setOpen(false)} title="Payment details gyms see">
+        <form onSubmit={save}>
+          <div className="row2">
+            <label className="field">
+              <span>Bank</span>
+              <input value={form.bankName} onChange={set("bankName")} autoFocus />
+            </label>
+            <label className="field">
+              <span>Account name</span>
+              <input value={form.accountName} onChange={set("accountName")} />
+            </label>
+          </div>
+          <label className="field">
+            <span>Account number</span>
+            <input value={form.accountNumber} onChange={set("accountNumber")} />
+          </label>
+          <label className="field">
+            <span>Anything else they should know (optional)</span>
+            <input
+              value={form.notes}
+              onChange={set("notes")}
+              placeholder="e.g. Use your gym's name as the transfer reference"
+            />
+          </label>
+          {/* Nothing is required. A provider half way through filling this in
+              should not be blocked, and the owner's screen already renders a
+              missing field as "Not set" rather than breaking. */}
+          {error && <div className="form-error">{error}</div>}
+          <div className="form-actions">
+            <button className="btn btn--primary btn--inline" type="submit" disabled={busy}>
+              {busy ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+    </div>
+  );
+}
+
 function CommissionSettings({ percent, onChanged }) {
   const [modalOpen, setModalOpen] = useState(false);
 

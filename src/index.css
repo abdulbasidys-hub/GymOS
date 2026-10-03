@@ -3294,3 +3294,34 @@ select option { background: var(--surface); color: var(--text); }
   font-weight: 600;
 }
 .pay-method__option:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- copyable value (components/CopyableText.jsx) ----
+   A button that looks like text, because it IS the value — the affordance is
+   the hint beside it, not a box around it. */
+.copyable {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.copyable__hint {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: 1px 8px;
+}
+.copyable:hover .copyable__hint { color: var(--text); }
+.copyable__hint--on {
+  color: var(--accent);
+  border-color: rgba(var(--accent-rgb), 0.5);
+  background: rgba(var(--accent-rgb), 0.1);
+}

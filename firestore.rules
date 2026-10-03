@@ -182,6 +182,20 @@ service cloud.firestore {
       allow create, update: if isSuperAdmin();
     }
 
+    // The platform's own bank details, shown to owners so they can pay for
+    // GymOS. Readable by anyone signed in — these are handed to whoever owes
+    // us money, so there is nothing to protect; a marketer helping a gym pay
+    // should be able to read them off their own screen too.
+    //
+    // Kept OUT of platform_settings on purpose: that document holds the
+    // affiliate commission rate and is super-admin-read-only, so putting the
+    // bank details there would have meant opening the commission rate to
+    // every gym in order to show them where to send money.
+    match /platform_billing/{id} {
+      allow read: if isSignedIn();
+      allow create, update: if isSuperAdmin();
+    }
+
     match /platform_settings/{id} {
       allow read: if isSuperAdmin();
       allow create, update: if isSuperAdmin() &&

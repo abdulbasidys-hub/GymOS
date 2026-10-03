@@ -363,6 +363,18 @@ loads the pricing page directly. Writes stay super-admin-only.
 id, gym_id, gym_name, plan_id, plan_name, amount, duration_days, paid_at, + ledger fields
 ```
 
+### platform_billing (single doc, id "account") — super-admin sets, everyone reads
+```
+bank_name, account_name, account_number, notes?, updated_at, updated_by
+```
+Where a gym sends money for GymOS itself. A SEPARATE collection from
+platform_settings below, and that separation is the whole point: that document
+holds `affiliate_commission_percent`, which is why its read rule is
+super-admin only — so publishing the bank details from there would have meant
+opening the commission rate to every gym in order to tell them where to pay.
+One document per audience instead. Read by any signed-in user (owners pay,
+marketers get asked); written by super-admin on Settings.
+
 ### platform_settings (single doc, id "config") — super-admin sets
 ```
 affiliate_commission_percent: number   // DEFAULT % of a platform payment an affiliate earns

@@ -165,6 +165,20 @@ Rates apply to payments recorded from then on. Commission already recorded
 keeps the rate it was recorded at — changing a rate never rewrites money
 somebody has already earned.
 
+### Owners can see where to send their payment
+
+The owner's Settings page now has a **Paying for GymOS** section with the
+bank, account name and account number. Tap a value to copy it instead of
+retyping — a mistyped account number does not bounce, it pays a stranger.
+
+It also says plainly that paying does not renew the subscription by itself:
+proof of payment goes to the GymOS contact on the Help page, and they extend
+it once they have seen it. A transfer nobody is told about is a gym that
+locks on its due date.
+
+Super admin sets the details from their own Settings page, and marketers can
+see them too, since they are the ones who get asked.
+
 ### A Help page, with the number of whoever set you up
 
 Both the owner and the front desk now have a **Help** page in their menu. It
